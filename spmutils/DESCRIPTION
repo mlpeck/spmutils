@@ -1,0 +1,21 @@
+Package: spmutils
+Type: Package
+Title: Utilities for Stellar Population Modeling
+Version: 0.1.0
+Author: M.L. Peck
+Maintainer: M.L. Peck <mlpeck54@gmail.com>
+Description: Routines for stellar population modeling and visualization from galaxy spectra
+Depends: R (>= 3.4.0)
+Suggests: akima,
+          cosmo,
+          fields,
+          FITSio,
+          ggforce,
+          ggplot2,
+          nabor,
+          Rsolnp,
+          rstan,
+          sfdmap,
+          viridis,
+License: MIT
+LazyData: TRUE
