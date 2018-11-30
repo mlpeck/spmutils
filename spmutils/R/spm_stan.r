@@ -162,7 +162,7 @@ get_sfh <- function(b_st, norm_st, age, mstar, z, fibersinbin=1, tsf=0.1) {
   totalmg_post <- cbind(rowSums(mgh_post), rowSums(mgh_post) - t(apply(mgh_post, 1, cumsum)))
   mgh_post <- cbind(rep(1, nsim), 1 - (t(apply(mgh_post, 1, cumsum))/rowSums(mgh_post)))
   sfr <- log10(rowSums(sfh_post[,1:isf])/T.gyr[isf])-9.
-  relsfr <- log10(rowSums(sfh_post)/(cosmo::dcos(Inf)$dT-cosmo::dcos(z)$dT))-sfr-6
+  relsfr <- sfr - log10(rowSums(sfh_post)/(cosmo::dcos(Inf)$dT-cosmo::dcos(z)$dT)) + 6
   sigma_sfr <- sfr - binarea
   sigma_mstar <- log10(b_st %*% mstar) - binarea
   ssfr <- sigma_sfr - sigma_mstar
@@ -803,9 +803,9 @@ plotpp <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise
 plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
     require(ggplot2)
     require(gridExtra)
-    lambda <- sfit$data$lambda
-    gflux <- sfit$data$gflux
-    g_std <- sfit$data$g_std
+    lambda <- sfit$spm_data$lambda
+    gflux <- sfit$spm_data$gflux
+    g_std <- sfit$spm_data$g_std
     fitted <- rstan::extract(sfit$stanfit)$mu_g
     res <- t((gflux-t(fitted))/g_std)
     ylims <- apply(fitted, 2, quantile, probs=quants)
@@ -822,7 +822,7 @@ plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turqu
     g2 <- g2 + xlab(expression(lambda)) + ylab("sd")
     g2 <- g2 + geom_line(aes(y=rmean), color=fcolor)
     g2 <- g2 + geom_ribbon(aes(ymin=rmin, ymax=rmax), fill=fcolor)
-    grid.arrange(g1, g2, nrow=2, heights=c(3,1))
+    plot(grid.arrange(g1, g2, nrow=2, heights=c(3,1)))
     list(g1=g1, g2=g2)
 }
 
