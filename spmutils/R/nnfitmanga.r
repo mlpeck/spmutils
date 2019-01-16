@@ -107,7 +107,7 @@ nnfitmanga <- function(gdat, dz, lib.ssp, age, Z, gri.ssp, mstar,
   lambda.em <- lambda_em
   n.em <- length(lambda.em)
   ##needed to correct for log lambda grid
-  em.mult <- lambda.em * log(10)
+  em.mult <- lambda.em * log(10)/10000
   n.st <- ncol(lib.ssp)-1
   
   nnfits <- array(NA, dim=c(nr, nc, n.em+n.st))

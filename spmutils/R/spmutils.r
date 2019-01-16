@@ -144,7 +144,7 @@ make_emlib <- function(lambda_em, vdisp_em, loglambda, isok, sthresh=5000) {
         x_em[,i] <- dnorm(loglambda, mean=log10(lambda_em[i]), sd=vdisp_p)
     }
     in_em <- which(colSums(x_em[isok, ]) >= sthresh)
-    x_em <- x_em[,in_em]
+    x_em <- x_em[,in_em]/10000
     list(x_em=x_em, in_em=in_em)
 }
 

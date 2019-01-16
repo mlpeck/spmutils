@@ -55,7 +55,7 @@ nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar,
   isf <- which.min(abs(tsf-T.gyr))
   n.em <- length(lambda.em)
   ##needed to correct for log lambda grid
-  em.mult <- lambda.em * log(10)
+  em.mult <- lambda.em * log(10)/10000
   n.st <- ncol(lib.ssp)-1
   
   nnfits <- matrix(NA, nr, n.em+n.st)
