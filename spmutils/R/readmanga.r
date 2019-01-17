@@ -1,5 +1,18 @@
-readcube <- function(fname, drpcat=NULL) {
+readcube <- function(fname, drpcat=NULL, release=15) {
     require(FITSio)
+    if (release >= 15) {
+      hdu_lambda <- 6
+      hdu_gimg <- 12
+      hdu_rimg <- 13
+      hdu_iimg <- 14
+      hdu_zimg <- 15
+    } else {
+      hdu_lambda <- 4
+      hdu_gimg <- 8
+      hdu_rimg <- 9
+      hdu_iimg <- 10
+      hdu_zimg <- 11
+    }
     ff <- file(fname, "rb")
     hd0 <- parseHdr(readFITSheader(ff))
     mangaid <- hd0[grep("MANGAID", hd0)+1]
@@ -21,7 +34,7 @@ readcube <- function(fname, drpcat=NULL) {
     flux <- readFITS(fname, hdu=1)$imDat
     ivar <- readFITS(fname, hdu=2)$imDat
     mask <- readFITS(fname, hdu=3)$imDat
-    lambda <- readFITS(fname, hdu=4)$imDat
+    lambda <- readFITS(fname, hdu=hdu_lambda)$imDat
     ivar[ivar <= 0] <- NA
     ivar[mask >= 1024] <- NA
     flux[is.na(ivar)] <- NA
@@ -44,10 +57,10 @@ readcube <- function(fname, drpcat=NULL) {
     dec.f <- 180/pi*asin(sin(lat)*sin(cdec*pi/180) - cos(lat)*cos(long)*cos(cdec*pi/180))
     ra.f <- cra + 180/pi*atan2(cos(lat)*sin(long),
                                sin(lat)*cos(cdec*pi/180) + cos(lat)*cos(long)*sin(cdec*pi/180))
-    gimg <- readFITS(fname, hdu=8)$imDat*elaw(4640.4,ebv)
-    rimg <- readFITS(fname, hdu=9)$imDat*elaw(6122.3,ebv)
-    iimg <- readFITS(fname, hdu=10)$imDat*elaw(7439.5,ebv)
-    zimg <- readFITS(fname, hdu=11)$imDat*elaw(8897.1,ebv)
+    gimg <- readFITS(fname, hdu=hdu_gimg)$imDat*elaw(4640.4,ebv)
+    rimg <- readFITS(fname, hdu=hdu_rimg)$imDat*elaw(6122.3,ebv)
+    iimg <- readFITS(fname, hdu=hdu_iimg)$imDat*elaw(7439.5,ebv)
+    zimg <- readFITS(fname, hdu=hdu_zimg)$imDat*elaw(8897.1,ebv)
     if (!is.null(drpcat)) {
         ind <- which(drpcat$plateifu == plateifu)
         z <- drpcat$nsa_z[ind]
@@ -62,8 +75,17 @@ readcube <- function(fname, drpcat=NULL) {
          gimg=gimg, rimg=rimg, iimg=iimg, zimg=zimg)
 }
 
-readrss <- function(fname, drpcat=NULL, ndither=3) {
+readrss <- function(fname, drpcat=NULL, ndither=3, release=15) {
     require(FITSio)
+    if (release >= 15) {
+      hdu_lambda <- 6
+      hdu_xpos <- 12
+      hdu_ypos <- 13
+    } else {
+      hdu_lambda <- 5
+      hdu_xpos <- 9
+      hdu_ypos <- 10
+    }
     ff <- file(fname, "rb")
     hd0 <- parseHdr(readFITSheader(ff))
     mangaid <- hd0[grep("MANGAID", hd0)+1]
@@ -79,9 +101,9 @@ readrss <- function(fname, drpcat=NULL, ndither=3) {
     flux <- readFITS(fname, hdu=1)$imDat
     ivar <- readFITS(fname, hdu=2)$imDat
     mask <- readFITS(fname, hdu=3)$imDat
-    lambda <- as.vector(readFITS(fname, hdu=5)$imDat)
-    xpos <- readFITS(fname, hdu=9)$imDat
-    ypos <- readFITS(fname, hdu=10)$imDat
+    lambda <- as.vector(readFITS(fname, hdu=hdu_lambda)$imDat)
+    xpos <- readFITS(fname, hdu=hdu_xpos)$imDat
+    ypos <- readFITS(fname, hdu=hdu_ypos)$imDat
     xpos <- apply(xpos, 2, mean)
     ypos <- apply(ypos, 2, mean)
     ivar[ivar <= 0] <- NA
