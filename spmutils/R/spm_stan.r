@@ -220,7 +220,7 @@ get_em <- function(b_em, b_st, norm_em, norm_st, emlines, z, lib.ssp, fibersinbi
   ne <- ncol(b_em)
   nsim <- nrow(b_em)
   binarea <- log10(pi*fibersinbin*cosmo::ascale(z)^2)
-  em.mult <- emlines*log(10)
+  em.mult <- emlines*log(10)/10000
 
   flux_em <- matrix(NA, nsim, ne)
   sigma_logl_em <- matrix(NA, nsim, ne)
