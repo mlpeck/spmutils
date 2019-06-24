@@ -42,14 +42,15 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
 }
 
 ggbinplot <- function(gdat, z, zlab=NULL, 
-                      addfiberpos=TRUE, addcentroid=FALSE, addborders=TRUE,
+                      addfiberpos=TRUE, addcentroid=FALSE, 
+                      addborders=TRUE, addfp=TRUE,
                       show.legend=TRUE, na.value="grey95", palette="Set1",
-                      colors=viridis::viridis(256)) {
+                      colors=viridis::viridis(256), fpcolor="red") {
   require(ggplot2)
   
-  df <- data_frame(x=gdat$xpos, y=gdat$ypos, z=as.vector(z))
+  df <- data.frame(x=gdat$xpos, y=gdat$ypos, z=z)
   if (exists("x.orig", gdat)) {   ## this is a voronoi binned data set
-    df2 <- data_frame(x=gdat$x.orig, y=gdat$y.orig)
+    df2 <- data.frame(x=gdat$x.orig, y=gdat$y.orig)
   } else {
     df2 <- df
   }
@@ -65,17 +66,21 @@ ggbinplot <- function(gdat, z, zlab=NULL,
   if (addfiberpos) {
     g1 <- g1 + geom_point(aes(x=x, y=y), data=df2)
   }
+  if (addfp) {
+    g1 <- g1 + ggalt::geom_encircle(aes(x=x, y=y), data=df2, expand=0.02, color=fpcolor, size=2)
+  }
   if (!is.null(zlab) & show.legend) {
     g1 <- g1 + labs(fill=zlab)
   }
   if (is.factor(z)) {
-    g1 <- g1 + scale_fill_brewer(type="qual", palette=palette, na.value=na.value)
+    g1 <- g1 + scale_fill_brewer(type="qual", palette=palette, na.value=na.value, drop=FALSE)
   } else {
     g1 <- g1 + scale_fill_gradientn(colors=colors, na.value=na.value)
   }
   plot(g1)
   g1
 }
+
 
 plotci <- function(df, names,
                    col=NULL, shape=NULL, palette="Set1", 

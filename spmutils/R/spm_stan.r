@@ -1,6 +1,4 @@
 stanfit_one <- function(gdat, dz, nnfits, which.spax, 
-                        lib.ssp, age, Z,
-                        emlines=lambda_em,
                         stan_model=NULL,
                         stan_file="spm_dust_norm.stan", stan_filedir="~/spmcode/",
                         iter=500, warmup=250, thin=1, chains=4, 
@@ -16,6 +14,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     logl <- log10(lambda.rest)
     nsim <- (iter-warmup)*chains
     T.gyr <- 10^(age-9)
+    dT <- diff(c(0, T.gyr))
         
     lib.ssp$lambda <- airtovac(lib.ssp$lambda)
     lib.st <- regrid(lambda.rest, lib.ssp)
@@ -26,62 +25,56 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     ind.young <- (0:(nz-1))*nt+1
     allok <- complete.cases(flux, ivar, x.st)
     nl <- length(which(allok))
+    norm_g <- mean(flux[allok])
+    norm_st <- colMeans(x.st[allok,])
+    x.st <- scale(x.st[allok,], center=FALSE, scale=norm_st)
     
     x.em <- make_emlib(emlines, nnfits$vdisp.em[i, j], logl, allok)
     in.em <- x.em$in_em
     x.em <- x.em$x_em
     n.em <- ncol(x.em)
-    
-    tauv <- nnfits$tauv[i, j]
-    
-    b.st <- nnfits$nnfits[i, j, 1:n.st]
-    b.em <- nnfits$nnfits[i, j, (n.st+1):(n.st+n.em)]
-    norm.st <- max(b.st)
-    norm.em <- max(b.em)
-    x.st <- x.st*norm.st
-    x.em <- x.em*norm.em
-    dT <- rep(diff(c(0,T.gyr)), nz)
+    norm_em <- 1
     
     spm_data <- list(nt=nt, nz=nz, nl=nl, n_em=n.em,
                      ind_young=ind.young,
                      lambda=lambda.rest[allok],
-                     gflux=flux[allok],
-                     g_std=1/sqrt(ivar[allok]),
-                     sp_st=x.st[allok,],
-                     dT=dT,
+                     gflux=flux[allok]/norm_g,
+                     g_std=1/sqrt(ivar[allok])/norm_g,
+                     norm_g=norm_g,
+                     norm_st=norm_st,
+                     norm_em=norm_em,
+                     sp_st=x.st,
+                     dT=rep(dT, nz),
                      sp_em=x.em[allok,])
-    deps <- sqrt(.Machine$double.eps)
-    b_st <- b.st/norm.st
-    b_em <- b.em/norm.em
-    b_em[b_em==0] <- deps
-    if (tauv == 0) tauv <- deps
+    
+    if (is.null(stan_model)) {
+      stan_model <- rstan::stan_model(file=file.path(stan_filedir, stan_file))
+    }
+    
+    spm_opt <- optimizing(stan_model, data=spm_data, as_vector=FALSE, verbose=TRUE)
     
     init_pars <- function(chain_id) {
-        b_st0 <- b_st
-        atzero <- which(b_st0 == 0)
-        b_st0[atzero] <- runif(length(atzero), 0, .001)
-        list(b_st=b_st0, b_em=b_em, tauv=tauv)
+      b_st <- spm_opt$par$b_st
+      b_em <- spm_opt$par$b_em
+      tauv <- spm_opt$par$tauv
+      b_st <- b_st + runif(length(b_st), max=1.e-5)
+      b_st <- b_st/sum(b_st)
+      b_em <- b_em + runif(length(b_em), max=1.e-5)
+      tauv <- tauv + runif(1, max=1.e-5)
+      list(a=spm_opt$par$a, b_st=b_st, b_em=b_em, tauv=tauv)
     }
     
-    if (!is.null(stan_model)) {
-      stanfit <- sampling(stan_model, data=spm_data,
+    stanfit <- sampling(stan_model, data=spm_data,
                      chains=chains, iter=iter, warmup=warmup, thin=thin,
                      cores=min(chains, getOption("mc.cores")),
                      init=init_pars, open_progress=OP, ...)
     
-    } else {
-      stanfit <- stan(file=file.path(stan_filedir, stan_file), data=spm_data,
-                     chains=chains, iter=iter, warmup=warmup, thin=thin,
-                     cores=min(chains, getOption("mc.cores")),
-                     init=init_pars, open_progress=OP, ...)
-    }
-    list(spm_data=spm_data, stanfit=stanfit, norm.st=norm.st, norm.em=norm.em, in.em=in.em)
+    list(spm_data=spm_data, stanfit=stanfit, norm_g=norm_g, norm_st=norm_st, norm_em=norm_em, in.em=in.em)
 }
+
 
                         
 stanfit_batch <- function(gdat, dz, nnfits,
-                        lib.ssp, age, Z,
-                        emlines=lambda_em,
                         stan_file="spm_dust_norm.stan", stan_filedir="~/spmcode/",
                         iter=500, warmup=250, chains=4,
                         OP=FALSE,
@@ -90,7 +83,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
     if (dims[2] > 1) stop("Use stacked data!")
     dz <- dz$dz
     nsim <- (iter-warmup)*chains
-    nt <- length(age)
+    nt <- length(ages)
     nr <- dims[1]
     n_st <- ncol(lib.ssp)-1
     n_em <- length(emlines)
@@ -99,12 +92,14 @@ stanfit_batch <- function(gdat, dz, nnfits,
     if (is.null(start) || !file.exists(fpart)) {
       b_st <- array(NA, dim=c(nsim, n_st, nr))
       b_em <- array(NA, dim=c(nsim, n_em, nr))
+      a <- matrix(NA, nrow=nsim, ncol=nr)
       tauv <- matrix(NA, nrow=nsim, ncol=nr)
       in_em <- matrix(NA, nrow=n_em, ncol=nr)
       walltime <- rep(NA, nr)
       divergences <- rep(NA, nr)
       max_treedepth <- rep(NA, nr)
-      norm_st <- rep(NA, nr)
+      norm_g <- rep(NA, nr)
+      norm_st <- matrix(NA, nrow=n_st, ncol=nr)
       norm_em <- rep(NA, nr)
       start <- 1
     } else {
@@ -116,42 +111,56 @@ stanfit_batch <- function(gdat, dz, nnfits,
     for (i in start:end) {
         if (is.na(dz[i, 1]) || is.na(nnfits$Mstar[i, 1])) next
         sfit <- stanfit_one(gdat, dz, nnfits, which.spax=c(i, 1),
-                               lib.ssp, age=age, Z=Z,
-                               emlines=emlines,
                                stan_model=smodel,
                                iter = iter, warmup = warmup, chains = chains, OP=OP, ...)
         plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
         post <- extract(sfit$stanfit)
         b_st[,,i] <- post$b_st
         b_em[,sfit$in.em,i] <- post$b_em
+        a[,i] <- post$a
         tauv[,i] <- post$tauv
         in_em[sfit$in.em,i] <- sfit$in.em
         walltime[i] <- max(rowSums(get_elapsed_time(sfit$stanfit)))
         sp <- get_sampler_params(sfit$stanfit)
         divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
         max_treedepth[i] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
-        norm_st[i] <- sfit$norm.st
-        norm_em[i] <- sfit$norm.em
-        save(b_st, b_em, tauv, in_em,
+        norm_g[i] <- sfit$norm_g
+        norm_st[,i] <- sfit$norm_st
+        norm_em[i] <- sfit$norm_em
+        save(b_st, b_em, tauv, a, in_em,
                   walltime, divergences, max_treedepth,
-                  norm_st, norm_em, file = fpart)
+                  norm_g, norm_st, norm_em, file = fpart)
         rm(sfit, post, sp)
     }
-    list(b_st=b_st, b_em=b_em, tauv=tauv, in_em=in_em,
+    list(b_st=b_st, b_em=b_em, a=a, tauv=tauv, in_em=in_em,
                   walltime=walltime, divergences=divergences, max_treedepth=max_treedepth,
-                  norm_st=norm_st, norm_em=norm_em)
+                  norm_g=norm_g, norm_st=norm_st, norm_em=norm_em)
 }
 
 ## star formation history, mass growth history, etc.
 
-get_sfh <- function(b_st, norm_st, age, mstar, z, fibersinbin=1, tsf=0.1) {
+get_sfh <- function(..., z, fibersinbin=1, density=TRUE, tsf=0.1) {
+  ins <- list(...)
+  if (is.list(ins[[1]])) {
+    ins <- ins[[1]]
+    post <- rstan::extract(ins$stanfit)
+    b_st <- post$b_st
+    norm_st <- ins$norm_st
+  } else {
+    b_st <- ins$b_st
+    norm_st <- ins$norm_st
+  }
   nsim <- nrow(b_st)
-  nt <- length(age)
+  nt <- length(ages)
   nz <- ncol(b_st)/nt
-  T.gyr <- 10^(age-9)
+  T.gyr <- 10^(ages-9)
   isf <- which.min(abs(tsf-T.gyr))
-  binarea <- log10(pi*fibersinbin*cosmo::ascale(z)^2)
-  b_st <- b_st*norm_st*cosmo::lum.sol(1, z)
+  if (density) {
+    binarea <- log10(pi*fibersinbin*cosmo::ascale(z)^2)
+  } else {
+    binarea <- 0
+  }
+  b_st <- t(t(b_st)*norm_st)*cosmo::lum.sol(1, z)
   rmass <- t(t(b_st) * mstar)
   sfh_post <- matrix(0, nsim, nt)
   mgh_post <- matrix(0, nsim, nt)
@@ -170,12 +179,18 @@ get_sfh <- function(b_st, norm_st, age, mstar, z, fibersinbin=1, tsf=0.1) {
        sigma_mstar=sigma_mstar, sigma_sfr=sigma_sfr, ssfr=ssfr, relsfr=relsfr)
 }
 
-batch_sfh <- function(b_st, norm_st, age, mstar, z, fibersinbin, tsf=0.1) {
+batch_sfh <- function(gdat, sfits, tsf=0.1) {
+  b_st <- sfits$b_st
+  norm_st <- sfits$norm_st
   dims <- dim(b_st)
   nsim <- dims[1]
-  nt <- length(age)
+  nt <- length(ages)
   nz <- dims[2]/nt
-  nf <- length(norm_st)
+  nf <- dims[3]
+  z <- gdat$meta$z
+  if (!exists(gdat$fibersinbin)) {
+    fibersinbin <- rep(1, nf)
+  }
   
   sfh_post <- array(NA, dim=c(nsim, nt, nf))
   mgh_post <- array(0, dim=c(nsim, nt+1, nf))
@@ -187,7 +202,7 @@ batch_sfh <- function(b_st, norm_st, age, mstar, z, fibersinbin, tsf=0.1) {
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
-    sfi <- get_sfh(b_st[,,i], norm_st[i], age=age, mstar=mstar, z=z, fibersinbin=fibersinbin[i])
+    sfi <- get_sfh(b_st[,,i], norm_st[i], z=z, fibersinbin=fibersinbin[i])
     sfh_post[,,i] <- sfi$sfh_post
     mgh_post[,,i] <- sfi$mgh_post
     totalmg_post <- totalmg_post + sfi$totalmg_post
@@ -203,10 +218,21 @@ batch_sfh <- function(b_st, norm_st, age, mstar, z, fibersinbin, tsf=0.1) {
   
 ## some sorta useful summary measures
 
-get_proxies <- function(b_st, age, Z, gri.ssp) {
+get_proxies <- function(...) {
+  ins <- list(...)
+  if (is.list(ins[[1]])) {
+    ins <- ins[[1]]
+    post <- rstan::extract(ins$stanfit)
+    b_st <- post$b_st
+    norm_st <- ins$norm_st
+  } else {
+    b_st <- ins$b_st
+    norm_st <- ins$norm_st
+  }
+  b_st <- t(t(b_st)*norm_st)
   nz <- length(Z)
-  nt <- length(age)
-  T.gyr <- 10^(age-9)
+  nt <- length(ages)
+  T.gyr <- 10^(ages-9)
   tbar <- log10((b_st %*% rep(T.gyr, nz))/rowSums(b_st)) + 9
   tbar_lum <- log10((b_st %*% (rep(T.gyr, nz) * gri.ssp["r",]))/
                    ((b_st %*% gri.ssp["r",]))) + 9
@@ -216,7 +242,22 @@ get_proxies <- function(b_st, age, Z, gri.ssp) {
 
 ## emission line fluxes, luminosity density, equivalent width
 
-get_em <- function(b_em, b_st, norm_em, norm_st, emlines, z, lib.ssp, fibersinbin=1, ew_width=15) {
+get_em <- function(b_em, b_st, norm_em, norm_st, fibersinbin=1, ew_width=15) {
+  ins <- list(...)
+  if (is.list(ins[[1]])) {
+    ins <- ins[[1]]
+    post <- rstan::extract(ins$stanfit)
+    b_st <- post$b_st
+    b_em <- post$b_em
+    norm_st <- ins$norm_st
+    norm_em <- ins$norm_em
+  } else {
+    b_st <- ins$b_st
+    b_em <- ins$b_em
+    norm_st <- ins$norm_st
+    norm_em <- ins$norm_em
+  }
+  b_st <- t(t(b_st)*norm_st)
   ne <- ncol(b_em)
   nsim <- nrow(b_em)
   binarea <- log10(pi*fibersinbin*cosmo::ascale(z)^2)
@@ -230,7 +271,7 @@ get_em <- function(b_em, b_st, norm_em, norm_st, emlines, z, lib.ssp, fibersinbi
   flux_em[flux_em < 0] <- 0
   sigma_logl_em <- cosmo::loglum.ergs(flux_em, z) - binarea
   
-  mu_st <- tcrossprod(b_st, as.matrix(lib.ssp[, -1])) * norm_st
+  mu_st <- tcrossprod(b_st, as.matrix(lib.ssp[, -1]))
   il_em <- findInterval(emlines, lib.ssp$lambda)
   for (i in 1:ne) {
     intvl <- (il_em[i]-ew_width):(il_em[i]+ew_width)
@@ -243,20 +284,21 @@ get_em <- function(b_em, b_st, norm_em, norm_st, emlines, z, lib.ssp, fibersinbi
   list(flux_em=flux_em, sigma_logl_em=sigma_logl_em, ew_em=ew_em)
 }
 
-batch_em <- function(b_em, b_st, norm_em, norm_st, in_em, emlines, z, lib.ssp, fibersinbin, ew_width=15) {
-  nsim <- dim(b_em)[1]
+batch_em <- function(gdat, sfits, ew_width=15) {
+  nsim <- dim(sfits$b_em)[1]
   ne <- length(emlines)
-  nf <- length(fibersinbin)
+  nf <- length(gdat$fibersinbin)
   
   flux_em <- array(NA, dim=c(nsim, ne, nf))
   sigma_logl_em <- array(NA, dim=c(nsim, ne, nf))
   ew_em <- array(NA, dim=c(nsim, ne, nf))
   
   for (i in 1:nf) {
-    if (is.na(b_st[1, 1, i])) next
-    in_em_i <- in_em[!is.na(in_em[,i]), i]
-    emi <- get_em(b_em[,in_em_i,i], b_st[,,i], norm_em[i], norm_st[i], emlines=emlines[in_em_i], z=z, lib.ssp=lib.ssp,
-                  fibersinbin=fibersinbin[i], ew_width=ew_width)
+    if (is.na(sfits$b_st[1, 1, i])) next
+    in_em_i <- sfits$in_em[!is.na(in_em[,i]), i]
+    emi <- get_em(sfits$b_em[,in_em_i,i], sfits$b_st[,,i], sfits$norm_em[i], sfits$norm_st[i], 
+                  emlines=emlines[in_em_i], z=gdat$meta$z, lib.ssp=lib.ssp,
+                  fibersinbin=gdat$fibersinbin[i], ew_width=ew_width)
     flux_em[,in_em_i,i] <- emi$flux_em
     sigma_logl_em[,in_em_i,i] <- emi$sigma_logl_em
     ew_em[,in_em_i,i] <- emi$ew_em
@@ -266,7 +308,49 @@ batch_em <- function(b_em, b_st, norm_em, norm_st, in_em, emlines, z, lib.ssp, f
   dimnames(ew_em)[[2]] <- names(emlines)
   list(flux_em=flux_em, sigma_logl_em=sigma_logl_em, ew_em=ew_em)
 }
-  
+
+## bpt class from [N II]/Halpha
+
+batch_bptclass <- function(flux_em, snthresh=3) {
+  nb <- dim(flux_em)[3]
+  bpt <- as.factor(rep("NO EM", nb))
+  levels(bpt) <- c("NO EM", "EL", "SF", "COMP", "LINER", "AGN")
+  f_m <- apply(flux_em, c(2, 3), mean)
+  f_sd <- apply(flux_em, c(2, 3), sd)
+  for (i in 1:nb) {
+    if (all(is.na(f_m[, i]))) {
+      bpt[i] <- NA
+      next
+    }
+    if(any(f_m[, i]/f_sd[, i] > snthresh, na.rm=TRUE)) bpt[i] <- "EL"
+    if (any(is.na(f_m[c("h_beta", "oiii_5007", "h_alpha", "nii_6584"), i]))) next
+    if (f_m["h_beta", i]/f_sd["h_beta", i] > snthresh &&
+        f_m["oiii_5007", i]/f_sd["oiii_5007", i] > snthresh &&
+        f_m["h_alpha", i]/f_sd["h_alpha", i] > snthresh &&
+        f_m["nii_6584", i]/f_sd["nii_6584", i] > snthresh) {
+      o3hbeta <- log10(f_m["oiii_5007", i]/f_m["h_beta", i])
+      n2halpha <- log10(f_m["nii_6584", i]/f_m["h_alpha", i])
+      if ((o3hbeta <= 0.61/(n2halpha-0.05)+1.3) &&
+         (n2halpha <= 0.05)) {
+        bpt[i] <- "SF"
+        next
+      }
+      if ((o3hbeta > 0.61/(n2halpha-0.05)+1.3 || n2halpha > 0.05) &&
+          (o3hbeta <= 0.61/(n2halpha-0.47)+1.19)) {
+        bpt[i] <- "COMP"
+        next
+      }
+      if ((o3hbeta > 0.61/(n2halpha-0.47)+1.19 || n2halpha > 0.47) &&
+          (o3hbeta > 1.05*n2halpha+0.45)) {
+        bpt[i] <- "AGN"
+      } else {
+        bpt[i] <- "LINER"
+      }
+    }
+  }
+  bpt
+}
+
 
 ## emission line ratios and various "strong line" metallicity calibrations
   
@@ -292,9 +376,9 @@ get_lineratios <- function(flux_em, tauv, tauv_mult=1, alaw=calzetti) {
   data.frame(o3hbeta=o3hbeta, o1halpha=o1halpha, n2halpha=n2halpha, s2halpha=s2halpha,
              r23=r23, o3n2=o3n2, oh_n2=oh_n2, oh_o3n2=oh_o3n2, oh_r23=oh_r23)
 }
+
   
-sum_batchfits <- function(gdat, nnfits, sfits, bptclass, lib.ssp, age, Z, gri.ssp, mstar, 
-                            emlines=lambda_em, alaw=calzetti, intr_bd=2.86, clim=0.95) {
+sum_batchfits <- function(gdat, nnfits, sfits, intr_bd=2.86, clim=0.95) {
     
     tauv.bd <- function(flux_em, intr_bd, alaw) {
       bd <- flux_em[,'h_alpha']/flux_em[,'h_beta']
@@ -324,7 +408,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, bptclass, lib.ssp, age, Z, gri.ss
     }
     
     nsim <- nrow(sfits$b_st)
-    nt <- length(age)
+    nt <- length(ages)
     fiberarea <- pi*cosmo::ascale(gdat$meta$z)^2
     plateifu <- rep(gdat$meta$plateifu, nf)
     
@@ -366,10 +450,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, bptclass, lib.ssp, age, Z, gri.ss
       }
     }
     
-    
-    oii_flux <- oii_flux_err <- numeric(nf)
-    
-    sfh_all <- batch_sfh(sfits$b_st, sfits$norm_st, age=age, mstar=mstar, z=gdat$meta$z, fibersinbin=fibersinbin)
+    sfh_all <- batch_sfh(sfits$b_st, sfits$norm_st, z=gdat$meta$z, fibersinbin=fibersinbin)
     
     for (i in 1:4) {
       assign(paste(varnames[i], suffixes[1], sep="_"), colMeans(sfh_all[[varnames[i]]]))
@@ -377,8 +458,9 @@ sum_batchfits <- function(gdat, nnfits, sfits, bptclass, lib.ssp, age, Z, gri.ss
     }
       
         
-    em_all <- batch_em(sfits$b_em, sfits$b_st, sfits$norm_em, sfits$norm_st, sfits$in_em, emlines=emlines, z=gdat$meta$z, 
-                       lib.ssp=lib.ssp, fibersinbin=fibersinbin)
+    em_all <- batch_em(sfits$b_em, sfits$b_st, sfits$norm_em, sfits$norm_st, sfits$in_em, z=gdat$meta$z, 
+                       fibersinbin=fibersinbin)
+    bpt <- batch_bptclass(em_all$flux_em)
     
     
     for (i in 1:nf) {
@@ -401,7 +483,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, bptclass, lib.ssp, age, Z, gri.ss
       relsfr_lo[i] <- quants[1]
       relsfr_hi[i] <- quants[2]
       
-      proxi <- get_proxies(sfits$b_st[,,i], age, Z, gri.ssp)
+      proxi <- get_proxies(sfits$b_st[,,i])
       
       tbar_m[i] <- mean(proxi$tbar)
       tbar_std[i] <- sd(proxi$tbar)
@@ -549,19 +631,19 @@ sum_batchfits <- function(gdat, nnfits, sfits, bptclass, lib.ssp, age, Z, gri.ss
                oh_n2_m , oh_n2_std , oh_n2_lo , oh_n2_hi , 
                oh_o3n2_m , oh_o3n2_std , oh_o3n2_lo , oh_o3n2_hi , 
                oh_r23_m , oh_r23_std , oh_r23_lo , oh_r23_hi , 
-               bpt=bptclass)
+               bpt=bpt)
 }
 
-## estimated mean mass fraction in broad age bins
+## estimated mean mass fraction in broad ages bins
 
-sum_binnedmass <- function(mgh.post, ages, ages.bins = c(0.1, 2.5, 5)) {
+sum_binnedmass <- function(mgh_post, ages, ages.bins = c(0.1, 2.5, 5)) {
   T.gyr <- 10^(ages-9)
   ind.bins <- findInterval(ages.bins, T.gyr)
-  dims <- dim(mgh.post)
+  dims <- dim(mgh_post)
   nsim <- dims[1]
   nfib <- dims[3]
   nt <- length(ages.bins)+2
-  mgh.binned <- mgh.post[, c(1, ind.bins, dims[2]), ]
+  mgh.binned <- mgh_post[, c(1, ind.bins, dims[2]), ]
   mdiff <- mgh.binned[, 1:(nt-1),] - mgh.binned[, 2:nt, ]
   mb_m <- apply(mdiff, c(2, 3), mean)
   mb_sd <- apply(mdiff, c(2, 3), sd)
@@ -577,19 +659,19 @@ sum_binnedmass <- function(mgh.post, ages, ages.bins = c(0.1, 2.5, 5)) {
   
 ## useful plots
   
-plotsfh <- function(sfh, age, ptype="instsfr", quants=c(0.025,.975), log="", ylim=NULL) {
+plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", ylim=NULL) {
     require(ggplot2)
     
     nt <- ncol(sfh)
     ns <- nrow(sfh)
-    age.years <- 10^age
+    ages.years <- 10^ages
     yvals <- matrix(0, ns, nt)
     switch(ptype,
         avgsfr = {
-            yvals <- t(apply(sfh, 1, cumsum)/age.years)
+            yvals <- t(apply(sfh, 1, cumsum)/ages.years)
         },
         instsfr = {
-            dt <- diff(c(0,age.years))
+            dt <- diff(c(0,ages.years))
             yvals <- t(t(sfh)/dt)
         },
         cumfrac = {
@@ -601,11 +683,11 @@ plotsfh <- function(sfh, age, ptype="instsfr", quants=c(0.025,.975), log="", yli
             yvals <- 1-t(apply(sfh, 1, cumsum))/tm
         }
     )
-    age.gyr <- age.years*10^(-9)
+    ages.gyr <- ages.years*10^(-9)
     y <- colMeans(yvals)
     ylims <- apply(yvals, 2, quantile, probs=quants)
-    df <- data.frame(age.gyr=age.gyr, y=y, ymin=ylims[1,], ymax=ylims[2,])
-    g1 <- ggplot(df, aes(x=age.gyr, y=y)) + geom_line() + 
+    df <- data.frame(ages.gyr=ages.gyr, y=y, ymin=ylims[1,], ymax=ylims[2,])
+    g1 <- ggplot(df, aes(x=ages.gyr, y=y)) + geom_line() + 
             geom_ribbon(aes(ymin=ymin, ymax=ymax), color="gray70", alpha=0.5) +
             xlab("T (Gyr)") + ylab(ptype)
     if (!is.null(ylim)) {
@@ -620,15 +702,15 @@ plotsfh <- function(sfh, age, ptype="instsfr", quants=c(0.025,.975), log="", yli
     g1
 }
 
-plotmgh <- function(mgh, age, quants=c(.025, .975), log="", ylim=c(0,1)) {
+plotmgh <- function(mgh, ages, quants=c(.025, .975), log="", ylim=c(0,1)) {
     require(ggplot2)
-    age.gyr <- 10^(age-9)
+    ages.gyr <- 10^(ages-9)
     mgh.mean <- colMeans(mgh)
-    if (length(mgh.mean) > length(age.gyr)) {
-      age.gyr <- c(1.e-9, age.gyr)
+    if (length(mgh.mean) > length(ages.gyr)) {
+      ages.gyr <- c(1.e-9, ages.gyr)
     }
     lims <- apply(mgh, 2, quantile, probs=quants)
-    df <- data.frame(T=age.gyr, mgh=mgh.mean, ymin=lims[1,], ymax=lims[2,])
+    df <- data.frame(T=ages.gyr, mgh=mgh.mean, ymin=lims[1,], ymax=lims[2,])
     g1 <- ggplot(df, aes(x=T, y=mgh)) + geom_line() + xlab("T (Gyr)") + 
             ylab("Cumulative mass fraction")
     g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), color="gray70", alpha=0.5) +
@@ -642,12 +724,12 @@ plotmgh <- function(mgh, age, quants=c(.025, .975), log="", ylim=c(0,1)) {
     g1
 }
 
-addnnmgh <- function(ggraph, nnfits, which.spax, z, age, mstar, cumfrac=TRUE, color="red", linetype=2) {
+addnnmgh <- function(ggraph, nnfits, which.spax, z, ages, mstar, cumfrac=TRUE, color="red", linetype=2) {
   if (length(which.spax)==1) {
     which.spax <- c(which.spax,1)
   }
   ns <- length(mstar)
-  nt <- length(age)
+  nt <- length(ages)
   nz <- ns/nt
   rmass <- matrix(nnfits$nnfits[which.spax[1],which.spax[2],1:ns]*mstar, nt, nz)
   rmass <- rowSums(rmass) * cosmo::lum.sol(1, z)
@@ -655,16 +737,16 @@ addnnmgh <- function(ggraph, nnfits, which.spax, z, age, mstar, cumfrac=TRUE, co
   if (cumfrac) {
     mgh <- mgh/sum(rmass)
   }
-  df <- data.frame(t = c(0, 10^(age-9)), mgh=mgh)
+  df <- data.frame(t = c(0, 10^(ages-9)), mgh=mgh)
   ggraph + geom_line(aes(x=t, y=mgh), data=df, color=color, linetype=linetype)
 }
   
   
 
-multimgh <- function(..., age, ids=NULL, quants=c(0.025,0.975),
+multimgh <- function(..., ages, ids=NULL, quants=c(0.025,0.975),
                      palette="Set1", alpha=0.5, legend=NULL) {
   require(ggplot2)
-  ages <- 10^(age-9)
+  ages <- 10^(ages-9)
   mghs <- list(...)
   if (dim(mghs[[1]])[2] > length(ages)) {
     ages <- c(1.e-9, ages)
@@ -703,10 +785,10 @@ multimgh <- function(..., age, ids=NULL, quants=c(0.025,0.975),
 
 
 
-multimgh2 <- function(mghs, age, ids=NULL, quants=c(0.025,0.975),
+multimgh2 <- function(mghs, ages, ids=NULL, quants=c(0.025,0.975),
                      palette="Set1", alpha=0.5, legend=NULL) {
   require(ggplot2)
-  ages <- 10^(age-9)
+  ages <- 10^(ages-9)
   if (dim(mghs)[2] > length(ages)) {
     ages <- c(1.e-9, ages)
   }
@@ -749,7 +831,7 @@ multimgh2 <- function(mghs, age, ids=NULL, quants=c(0.025,0.975),
 
 ## mghs and ages in lists of same length
 
-multimgh3 <- function(mgh_list, age_list, ids=NULL, quants=c(0.025,0.975),
+multimgh3 <- function(mgh_list, ages_list, ids=NULL, quants=c(0.025,0.975),
                      palette="Set1", alpha=0.5, legend=NULL) {
   require(ggplot2)
   N <- length(mgh_list)
@@ -762,8 +844,8 @@ multimgh3 <- function(mgh_list, age_list, ids=NULL, quants=c(0.025,0.975),
   }
   id <- factor(levels=ids)
   for (i in 1:N) {
-    nt <- length(age_list[[i]])
-    x <- c(x, 1.e-9, 10^(age_list[[i]]-9))
+    nt <- length(ages_list[[i]])
+    x <- c(x, 1.e-9, 10^(ages_list[[i]]-9))
     y <- c(y, colMeans(mgh_list[[i]]))
     ylims <- apply(mgh_list[[i]], 2, quantile, probs=quants)       
     ymin <- c(ymin, ylims[1,])
@@ -789,6 +871,9 @@ plotpp <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise
     require(ggplot2)
     lambda <- sfit$spm_data$lambda
     gflux <- sfit$spm_data$gflux
+    if (exists("norm_g", sfit)) {
+      gflux <- gflux * sfit$norm_g
+    }
     pp <- rstan::extract(sfit$stanfit)$gflux_rep
     ylims <- apply(pp, 2, quantile, probs=quants)
     df <- data.frame(lambda=lambda, gflux=gflux, fitted=colMeans(pp),
@@ -806,6 +891,10 @@ plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turqu
     lambda <- sfit$spm_data$lambda
     gflux <- sfit$spm_data$gflux
     g_std <- sfit$spm_data$g_std
+    if (exists("norm_g", sfit)) {
+      gflux <- gflux * sfit$norm_g
+      g_std <- g_std * sfit$norm_g
+    }
     fitted <- rstan::extract(sfit$stanfit)$mu_g
     res <- t((gflux-t(fitted))/g_std)
     ylims <- apply(fitted, 2, quantile, probs=quants)
@@ -842,98 +931,6 @@ fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=100, usefields=TRUE) {
     list(ra=zsurf$x, dec=zsurf$y, z=zsurf$z)
 }
 
-mapsummaries <- function(gdat, nnfits, stanfits, dz, ages, outnames=
-                    c("vrel","d4000_n", "lick_hd_a", "lick_nad", "lick_mgfe",
-                      "g_i", "Sigma_mstar_m", "Sigma_sfr_m",
-                      "ssfr_m", "tbar_m", "tbar_lum_m", 
-                      "zbar_m", "tauv_m", "tauv_bd_m",
-                      "logl_halpha", "logl_oii", "logl_oiii", "logl_nii",
-                      "oiiihbeta", "oihalpha", "niihalpha", "siihalpha"),
-                      which.mgh=c(5,11,14,24), bdint=2.86, alaw=calzetti) {
-    t.gyr <- 10^(ages-9)
-    cmf <- paste("cmf_", formatC(t.gyr[which.mgh], digits=2, format="f", flag="0"), sep="")
-    nsum <- length(outnames) + length(cmf)
-    fiberarea <- pi*cosmo::ascale(gdat$meta$z)^2
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, nnfits$d4000_n)
-    ra <- zvals$ra
-    dec <- zvals$dec
-    maps <- array(0, dim=c(length(ra), length(dec), nsum))
-    dimnames(maps)[[3]] <- c(outnames, cmf)
-    maps[,,"d4000_n"] <- zvals$z
-    vf <- cosmo::vrel(gdat$meta$z+dz, gdat$meta$z)
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, vf)
-    maps[,,"vrel"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, nnfits$lick[,,'HdeltaA'])
-    maps[,,"lick_hd_a"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, nnfits$lick[,,'Na_D'])
-    maps[,,"lick_nad"] <- zvals$z
-    mgfe <- sqrt(nnfits$lick[,,'Mg_b']*(0.72*nnfits$lick[,,'Fe5270']+0.28*nnfits$lick[,,'Fe5335']))
-    mgfe[is.nan(mgfe)] <- NA
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, mgfe)
-    maps[,,"lick_mgfe"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, nnfits$gri[,,"g"]-nnfits$gri[,,"i"])
-    maps[,,"g_i"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, stanfits$sumpost$Mstar_m)
-    maps[,,"Sigma_mstar_m"] <- zvals$z - log10(fiberarea)
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, stanfits$sumpost$sfr_m)
-    maps[,,"Sigma_sfr_m"] <- zvals$z - log10(fiberarea)
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, stanfits$sumpost$ssfr_m)
-    maps[,,"ssfr_m"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, stanfits$sumpost$tbar_m)
-    maps[,,"tbar_m"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, stanfits$sumpost$tbar_lum_m)
-    maps[,,"tbar_lum_m"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, stanfits$sumpost$zbar_m)
-    maps[,,"zbar_m"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, stanfits$sumpost$tauv_m)
-    maps[,,"tauv_m"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(stanfits$logl.em[,'h_alpha',]))
-    maps[,,"logl_halpha"] <- zvals$z
-    oii <- log10(10^(stanfits$logl.em[,'oii_3727',]) + 10^(stanfits$logl.em[,'oii_3729',]))
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(oii))
-    maps[,,"logl_oii"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(stanfits$logl.em[,'oiii_5007',]))
-    maps[,,"logl_oiii"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(stanfits$logl.em[,'nii_6584',]))
-    maps[,,"logl_nii"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(stanfits$logl.em[,'oiii_5007',] -
-                                                    stanfits$logl.em[,'h_beta',]))
-    maps[,,"oiiihbeta"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(stanfits$logl.em[,'oi_6300',] -
-                                                    stanfits$logl.em[,'h_alpha',]))
-    maps[,,"oihalpha"] <- zvals$z
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(stanfits$logl.em[,'nii_6548',] -
-                                                    stanfits$logl.em[,'h_alpha',]))
-    maps[,,"niihalpha"] <- zvals$z
-    sii <- log10(10^(stanfits$logl.em[,'sii_6717',]) + 10^(stanfits$logl.em[,'sii_6730',]))
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(sii -
-                                                    stanfits$logl.em[,'h_alpha',]))
-    maps[,,"siihalpha"] <- zvals$z
-    tauv.bd <- function(logl.em, bdint, alaw) {
-        bd <- 10^(logl.em[,'h_alpha',]-logl.em[,'h_beta',])
-        bd[!is.finite(bd)] <- NA
-        tauv <- log(bd/bdint)/(log(alaw(6562.8,1))-log(alaw(4861.3,1)))
-        tauv[tauv<0] <- 0
-        tauv
-    }
-    zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(tauv.bd(stanfits$logl.em, bdint, alaw)))
-    maps[,,"tauv_bd_m"] <- zvals$z
-    for (i in seq_along(which.mgh)) {
-        zvals <- fillpoly(gdat$ra.f, gdat$dec.f, colMeans(stanfits$mgh.post[,which.mgh[i],]))
-        maps[,,cmf[i]] <- zvals$z
-    }
-    returns <- list(ra=ra, dec=dec, maps=maps)
-    rra <- rev(range(returns$ra))
-    rdec <- range(returns$dec)
-    for (i in 1:nsum) {
-        g1 <- ggimage(maps[,,i], ra, dec,
-                      xlab=expression(alpha), ylab=expression(delta),
-                      legend=(dimnames(maps)[[3]])[i], title=(dimnames(maps)[[3]])[i]) +
-            xlim(rra) + ylim(rdec)
-        plot(g1)
-    }
-    returns
-}
 
 ## computes highest density interval from a sample of representative values,
 ##   estimated as shortest credible interval.
