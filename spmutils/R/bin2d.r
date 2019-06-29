@@ -174,9 +174,9 @@ bin2d <- function(gdat, snrthresh=6.25, f.fluxok=0.8, wl.limits = c(3700, 7500),
   for (i in 1:nbins) {
     spec <- sum_spec(flux, ivar, which(classe==bins[i]), wl.ind=wl.ind, cfn=cfn)
     fibersinbin[i] <- length(which(classe==bins[i]))
-    flux.b[i,1,] <- spec$flux
-    ivar.b[i,1,] <- spec$ivar
-    snr[i, 1] <- spec$snr
+    flux.b[i,] <- spec$flux
+    ivar.b[i,] <- spec$ivar
+    snr[i] <- spec$snr
   }
   bin.fiber <- rep(NA, length(ok2bin))
   bin.fiber[ok2bin] <- classe

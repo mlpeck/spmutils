@@ -200,7 +200,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
-    sfi <- get_sfh(b_st[,,i], norm_st[i], z=z, fibersinbin=fibersinbin[i])
+    sfi <- get_sfh(b_st[,,i], norm_st[i,], z=z, fibersinbin=fibersinbin[i])
     sfh_post[,,i] <- sfi$sfh_post
     mgh_post[,,i] <- sfi$mgh_post
     totalmg_post <- totalmg_post + sfi$totalmg_post
@@ -240,7 +240,7 @@ get_proxies <- function(...) {
 
 ## emission line fluxes, luminosity density, equivalent width
 
-get_em <- function(b_em, b_st, norm_em, norm_st, fibersinbin=1, ew_width=15) {
+get_em <- function(..., z, fibersinbin=1, ew_width=15) {
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
@@ -294,8 +294,8 @@ batch_em <- function(gdat, sfits, ew_width=15) {
   for (i in 1:nf) {
     if (is.na(sfits$b_st[1, 1, i])) next
     in_em_i <- sfits$in_em[!is.na(in_em[,i]), i]
-    emi <- get_em(sfits$b_em[,in_em_i,i], sfits$b_st[,,i], sfits$norm_em[i], sfits$norm_st[i], 
-                  emlines=emlines[in_em_i], z=gdat$meta$z, lib.ssp=lib.ssp,
+    emi <- get_em(sfits$b_em[,in_em_i,i], sfits$b_st[,,i], sfits$norm_em[i], sfits$norm_st[i,], 
+                  emlines=emlines[in_em_i], z=gdat$meta$z,
                   fibersinbin=gdat$fibersinbin[i], ew_width=ew_width)
     flux_em[,in_em_i,i] <- emi$flux_em
     sigma_logl_em[,in_em_i,i] <- emi$sigma_logl_em
@@ -448,7 +448,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, intr_bd=2.86, clim=0.95) {
       }
     }
     
-    sfh_all <- batch_sfh(sfits$b_st, sfits$norm_st, z=gdat$meta$z, fibersinbin=fibersinbin)
+    sfh_all <- batch_sfh(gdat, sfits)
     
     for (i in 1:4) {
       assign(paste(varnames[i], suffixes[1], sep="_"), colMeans(sfh_all[[varnames[i]]]))
@@ -456,8 +456,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, intr_bd=2.86, clim=0.95) {
     }
       
         
-    em_all <- batch_em(sfits$b_em, sfits$b_st, sfits$norm_em, sfits$norm_st, sfits$in_em, z=gdat$meta$z, 
-                       fibersinbin=fibersinbin)
+    em_all <- batch_em(gdat, sfits)
     bpt <- batch_bptclass(em_all$flux_em)
     
     
