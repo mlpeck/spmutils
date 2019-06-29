@@ -97,7 +97,7 @@ readcube <- function(fname, drpcat=NULL, flatten=TRUE) {
     list(meta=list(mangaid=mangaid, plateifu=plateifu, versdrp=versdrp, 
                    ra=ra, dec=dec, l=l, b=b, 
                    ebv=ebv, z=z, zdist=zdist, cpix=c(cpix1, cpix2)),
-        xpos=xpos, ypos=ypos,
+        xpos= -3600 * xpos, ypos=3600 * ypos,
         lambda=lambda, ra.f=ra.f, dec.f=dec.f, 
         flux=flux, ivar=ivar, mask=mask, snr=snr,
         gimg=gimg, rimg=rimg, iimg=iimg, zimg=zimg)
@@ -182,6 +182,6 @@ stackrss <- function(gdat) {
     dec.f <- meta$dec + ypos/3600
     ra.f <- meta$ra - xpos/3600/cos(dec.f*pi/180)
     list(meta=meta, lambda=gdat$lambda, flux=flux, ivar=ivar, snr=snr, 
-         xpos=xpos, ypos=ypos, ra.f=ra.f, dec.f=dec.f, dz=dz)
+         xpos=xpos, ypos=ypos, ra.f=ra.f, dec.f=dec.f)
 }
 
