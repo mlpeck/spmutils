@@ -139,14 +139,14 @@ bin2d <- function(gdat, snrthresh=6.25, f.fluxok=0.8, wl.limits = c(3700, 7500),
     wl.ind <- findInterval(wl.limits, gdat$lambda/(1+gdat$meta$z), all.inside=TRUE)
   }
   
-  fluxok <- !is.na(gdat$flux[,,wl.ind[1]:wl.ind[2]])
+  fluxok <- !is.na(gdat$flux[,wl.ind[1]:wl.ind[2]])
   p.fluxok <- apply(fluxok, 1, sum)/(wl.ind[2]-wl.ind[1]+1)
   ok2bin <- (p.fluxok >= f.fluxok)
   
   x <- gdat$xpos[ok2bin]
   y <- gdat$ypos[ok2bin]
-  flux <- gdat$flux[ok2bin,,]
-  ivar <- gdat$ivar[ok2bin,,]
+  flux <- gdat$flux[ok2bin,]
+  ivar <- gdat$ivar[ok2bin,]
   ra.f <- gdat$ra.f[ok2bin]
   dec.f <- gdat$dec.f[ok2bin]
   

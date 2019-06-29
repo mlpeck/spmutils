@@ -1,11 +1,9 @@
 ## estimate redshift offsets
 
 getdz <- function(gdat, lib, snrthresh=5, nlthresh=2000, dzlim=0.003, searchinterval=1e-4) {
-  dims <- dim(gdat$flux)
-  nr <- dims[1]
-  nc <- dims[2]
-  dz <- matrix(NA, nr, nc)
-  dz.err <- matrix(NA, nr, nc)
+  nr <- nrow(gdat$flux)
+  dz <- numeric(nr)
+  dz.err <- numeric(nr)
   z <- gdat$meta$z
   lambda <- gdat$lambda
   fmla <- as.formula(paste("f ~", paste(names(lib)[-1], collapse="+")))
@@ -19,19 +17,25 @@ getdz <- function(gdat, lib, snrthresh=5, nlthresh=2000, dzlim=0.003, searchinte
   z_search <- seq(-dzlim, dzlim, by=searchinterval)
   
   for (i in 1:nr) {
-    for (j in 1:nc) {
-      if (is.na(gdat$snr[i,j]) || gdat$snr[i,j]<=snrthresh) next
-        f <- gdat$flux[i, j, ]
-        if (length(which(!is.na(f))) < nlthresh) next
-          iv <- gdat$ivar[i, j, ]
-          dev_grid <- fn_v(z_search)
-          z0 <- z_search[which.min(dev_grid)]
-          bestz <- Rsolnp::solnp(pars=z0, fun=fn, 
-                                 LB=z0-searchinterval, UB=z0+searchinterval, 
-                                 control=list(trace=0))
-          dz[i,j] <- bestz$pars
-          dz.err[i,j] <- sqrt(2/bestz$hessian)
+    if (is.na(gdat$snr[i]) || gdat$snr[i]<=snrthresh) {
+      dz[i] <- NA
+      dz.err[i] <- NA
+      next
     }
+    f <- gdat$flux[i, ]
+    if (length(which(!is.na(f))) < nlthresh) {
+      dz[i] <- NA
+      dz.err[i] <- NA
+      next
+    }
+    iv <- gdat$ivar[i, ]
+    dev_grid <- fn_v(z_search)
+    z0 <- z_search[which.min(dev_grid)]
+    bestz <- Rsolnp::solnp(pars=z0, fun=fn, 
+                           LB=z0-searchinterval, UB=z0+searchinterval, 
+                           control=list(trace=0))
+    dz[i] <- bestz$pars
+    dz.err[i] <- sqrt(2/bestz$hessian)
   }
   list(dz=dz, dz.err=dz.err)
 }
@@ -91,16 +95,15 @@ nnfitmanga <- function(gdat, dz, lib.ssp, age, Z, gri.ssp, mstar,
   }
   
   dz <- dz$dz
-  nr <- nrow(dz)
-  nc <- ncol(dz)
+  nr <- length(dz)
   lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   olib.ssp <- lib.ssp
-  tauv_err <- matrix(NA, nr, nc)
-  vdisp.em_err <- matrix(NA, nr, nc)
-  vdisp.st_err <- matrix(NA, nr, nc)
-  tauv <- matrix(NA, nr, nc)
-  vdisp.em <- matrix(NA, nr, nc)
-  vdisp.st <- matrix(NA, nr, nc)
+  tauv_err <- rep(NA, nr)
+  vdisp.em_err <- rep(NA, nr)
+  vdisp.st_err <- rep(NA, nr)
+  tauv <- rep(NA, nr)
+  vdisp.em <- rep(NA, nr)
+  vdisp.st <- rep(NA, nr)
   
   T.gyr <- 10^(age-9)
   isf <- which.min(abs(tsf-T.gyr))
@@ -110,104 +113,105 @@ nnfitmanga <- function(gdat, dz, lib.ssp, age, Z, gri.ssp, mstar,
   em.mult <- lambda.em * log(10)/10000
   n.st <- ncol(lib.ssp)-1
   
-  nnfits <- array(NA, dim=c(nr, nc, n.em+n.st))
-  xi2 <- matrix(NA, nr, nc)
-  tbar <- matrix(NA, nr, nc)
-  tbar.lum <- matrix(NA, nr, nc)
-  zbar <- matrix(NA, nr, nc)
-  Mstar <- matrix(NA, nr, nc)
-  gri <- array(NA, dim=c(nr, nc, nrow(gri.ssp)))
-  d4000_n <- matrix(NA, nr, nc)
-  d4000_n_err <- matrix(NA, nr, nc)
-  lick <- array(NA, dim=c(nr, nc, length(which.lick)))
-  lick.err <- array(NA, dim=c(nr, nc, length(which.lick)))
-  flux.em <- array(NA, dim=c(nr, nc, n.em))
-  flux.em.err <- array(NA, dim=c(nr, nc, n.em))
+  nnfits <- matrix(NA, nrow=nr, ncol=n.em+n.st)
+  xi2 <- rep(NA, nr)
+  tbar <- rep(NA, nr)
+  tbar.lum <- rep(NA, nr)
+  zbar <- rep(NA, nr)
+  Mstar <- rep(NA, nr)
+  gri <- matrix(NA, nrow=nr, ncol=nrow(gri.ssp))
+  d4000_n <- rep(NA, nr)
+  d4000_n_err <- rep(NA, nr)
+  lick <- matrix(NA, nrow=nr, ncol=length(which.lick))
+  lick.err <- matrix(NA, nrow=nr, ncol=length(which.lick))
+  flux.em <- matrix(NA, nrow=nr, ncol=n.em)
+  flux.em.err <- matrix(NA, nrow=nr, ncol=n.em)
   
   for (i in 1:nr) {
-    for (j in 1:nc) {
-      if (is.na(gdat$snr[i,j]) || gdat$snr[i,j]<=snrthresh || is.na(dz[i,j])) next
-        lambda <- gdat$lambda
-        flux <- gdat$flux[i,j,]
-        ivar <- gdat$ivar[i,j,]
-        z <- gdat$meta$z+dz[i,j]
-        lambda.rest <- lambda/(1+z)
-        logl <- log10(lambda.rest)
-        lib.ssp <- regrid(lambda.rest, olib.ssp)
-        fitij <- Rsolnp::solnp(pars=starts, fn, LB=lb, UB=ub)
-        tauv[i,j] <- fitij$pars[1]
-        vdisp.em[i,j] <- 100*fitij$pars[2]
-        vdisp.st[i,j] <- 100*fitij$pars[3]
-        errs <- tryCatch(sqrt(diag(solve(fitij$hessian))), error=function(e) rep(NA, 3))
-        tauv_err[i,j] <- errs[1]
-        vdisp.em_err[i,j] <- 100*errs[2]
-        vdisp.st_err[i,j] <- 100*errs[3]
-        
-        b <- fit.nn$x
-        b.st <- b[1:n.st]
-        b.em <- b[(n.st+1):length(b)]
-        nnfits[i, j, 1:length(b)] <- b
-        ni.em <- length(b)-n.st
-        nl <- length(lambda.rest[allok])
-        fitted <- cbind(x.st*as.vector(rlaw(lambda.rest,tauv[i,j])), x.em) %*% b
-        fitted.em <- x.em %*% b.em
-        gflux.net <- flux-fitted.em
-        residual <- (flux-fitted)*sqrt(ivar)
-        
-        ## basic measures of goodness of fit            
-        xi2[i,j] <- fit.nn$deviance/(nl-fit.nn$nsetp-1)
-        
-        ## plot spectrum and fit
-        tdat <- data.frame(lambda=lambda.rest, gflux=flux, fitted=fitted,
-                           residual=residual)
-        tlong <- melt(tdat, id.vars="lambda")
-        val <- c(rep(" obs",length(lambda.rest)), rep("fitted",length(lambda.rest)),
-                 rep("residual",length(lambda.rest)))
-        tlong <- cbind(tlong, val = val)
-        tlong$variable[tlong$variable=="gflux"] <- "fitted"
-        base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
-                      ylab="", col=val, 
-                      main=paste("(",i,", ",j,") xi2= ", 
-                                 format(xi2[i,j], digits=3), sep=""))
-        add.resid <- facet_grid(variable ~ ., scale="free_y")
-        plot(base+add.resid)
-        
-        ## emission line fluxes and errors
-        flux.em[i,j,in.em] <- b.em*em.mult[in.em]
-        nzeros <- sort(fit.nn$passive)
-        X <- cbind(x.st*as.vector(rlaw(lambda.rest,tauv[i,j])), x.em)[allok,nzeros]
-        V <- max(xi2[i, j], 1)*mpinv(crossprod(X, diag(ivar[allok])) %*% X)
-        sd.b <- rep(NA, n.st+ni.em)
-        sd.b[nzeros] <- sqrt(diag(V))
-        flux.em.err[i,j,in.em] <- sd.b[(n.st+1):(n.st+ni.em)]*em.mult[in.em]
-        
-        ## gri magnitudes
-        gri[i,j,] <- -2.5*log10(gri.ssp %*% b.st) + 20.092
-        
-        ## summaries from estimated sfh
-        tbar[i,j] <- log10(sum(rep(T.gyr, nz)*b.st)/sum(b.st))+9
-        tbar.lum[i,j] <- log10(sum(rep(T.gyr, nz) * b.st * gri.ssp["r",])/
-        sum(b.st * gri.ssp["r",]))+9
-        m.st <- cosmo::lum.sol(1, z)*b.st
-        Mstar[i, j] <- log10(sum(m.st*mstar))
-        
-        ##d4000 and lick indices
-        d4 <- d4000n(lambda.rest, gflux.net, ivar)
-        d4000_n[i,j] <- d4$d4000_n
-        d4000_n_err[i,j] <- d4$d4000_n_err
-        
-        d4 <- lickew(lambda.rest, gflux.net, ivar, which.index=which.lick)
-        lick[i,j,] <- d4[1:length(which.lick)]
-        lick.err[i,j,] <- d4[(length(which.lick)+1):length(d4)]            
-    }    
-  }
+    if (is.na(gdat$snr[i]) || gdat$snr[i]<=snrthresh || is.na(dz[i])) {
+      next
+    }
+    lambda <- gdat$lambda
+    flux <- gdat$flux[i,]
+    ivar <- gdat$ivar[i,]
+    z <- gdat$meta$z+dz[i]
+    lambda.rest <- lambda/(1+z)
+    logl <- log10(lambda.rest)
+    lib.ssp <- regrid(lambda.rest, olib.ssp)
+    fitij <- Rsolnp::solnp(pars=starts, fn, LB=lb, UB=ub)
+    tauv[i] <- fitij$pars[1]
+    vdisp.em[i] <- 100*fitij$pars[2]
+    vdisp.st[i] <- 100*fitij$pars[3]
+    errs <- tryCatch(sqrt(diag(solve(fitij$hessian))), error=function(e) rep(NA, 3))
+    tauv_err[i] <- errs[1]
+    vdisp.em_err[i] <- 100*errs[2]
+    vdisp.st_err[i] <- 100*errs[3]
+    
+    b <- fit.nn$x
+    b.st <- b[1:n.st]
+    b.em <- b[(n.st+1):length(b)]
+    nnfits[i, 1:length(b)] <- b
+    ni.em <- length(b)-n.st
+    nl <- length(lambda.rest[allok])
+    fitted <- cbind(x.st*as.vector(rlaw(lambda.rest,tauv[i])), x.em) %*% b
+    fitted.em <- x.em %*% b.em
+    gflux.net <- flux-fitted.em
+    residual <- (flux-fitted)*sqrt(ivar)
+    
+    ## basic measures of goodness of fit            
+    xi2[i] <- fit.nn$deviance/(nl-fit.nn$nsetp-1)
+    
+    ## plot spectrum and fit
+    tdat <- data.frame(lambda=lambda.rest, gflux=flux, fitted=fitted,
+                       residual=residual)
+    tlong <- melt(tdat, id.vars="lambda")
+    val <- c(rep(" obs",length(lambda.rest)), rep("fitted",length(lambda.rest)),
+             rep("residual",length(lambda.rest)))
+    tlong <- cbind(tlong, val = val)
+    tlong$variable[tlong$variable=="gflux"] <- "fitted"
+    base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
+                  ylab="", col=val, 
+                  main=paste("(",i,", ",j,") xi2= ", 
+                             format(xi2[i], digits=3), sep=""))
+    add.resid <- facet_grid(variable ~ ., scale="free_y")
+    plot(base+add.resid)
+    
+    ## emission line fluxes and errors
+    flux.em[i,in.em] <- b.em*em.mult[in.em]
+    nzeros <- sort(fit.nn$passive)
+    X <- cbind(x.st*as.vector(rlaw(lambda.rest,tauv[i])), x.em)[allok,nzeros]
+    V <- max(xi2[i], 1)*mpinv(crossprod(X, diag(ivar[allok])) %*% X)
+    sd.b <- rep(NA, n.st+ni.em)
+    sd.b[nzeros] <- sqrt(diag(V))
+    flux.em.err[i,in.em] <- sd.b[(n.st+1):(n.st+ni.em)]*em.mult[in.em]
+    
+    ## gri magnitudes
+    gri[i,] <- -2.5*log10(gri.ssp %*% b.st) + 20.092
+    
+    ## summaries from estimated sfh
+    tbar[i] <- log10(sum(rep(T.gyr, nz)*b.st)/sum(b.st))+9
+    tbar.lum[i] <- log10(sum(rep(T.gyr, nz) * b.st * gri.ssp["r",])/
+    sum(b.st * gri.ssp["r",]))+9
+    m.st <- cosmo::lum.sol(1, z)*b.st
+    Mstar[i] <- log10(sum(m.st*mstar))
+    
+    ##d4000 and lick indices
+    d4 <- d4000n(lambda.rest, gflux.net, ivar)
+    d4000_n[i] <- d4$d4000_n
+    d4000_n_err[i] <- d4$d4000_n_err
+    
+    d4 <- lickew(lambda.rest, gflux.net, ivar, which.index=which.lick)
+    lick[i,] <- d4[1:length(which.lick)]
+    lick.err[i,] <- d4[(length(which.lick)+1):length(d4)]            
+  }    
+  
   flux.em[flux.em > flux.em.bad] <- NA
   flux.em.err[!is.finite(flux.em)] <- NA
-  dimnames(lick)[[3]] <- as.list(names(d4)[1:length(which.lick)])
-  dimnames(lick.err)[[3]] <- as.list(names(d4)[(length(which.lick)+1):length(d4)])
-  dimnames(gri)[[3]] <- dimnames(gri.ssp)[[1]]
-  dimnames(flux.em)[[3]] <- as.list(names(lambda.em))
-  dimnames(flux.em.err)[[3]] <- as.list(paste(names(lambda.em), "_err", sep=""))
+  dimnames(lick)[[2]] <- as.list(names(d4)[1:length(which.lick)])
+  dimnames(lick.err)[[2]] <- as.list(names(d4)[(length(which.lick)+1):length(d4)])
+  dimnames(gri)[[2]] <- dimnames(gri.ssp)[[1]]
+  dimnames(flux.em)[[2]] <- as.list(names(lambda.em))
+  dimnames(flux.em.err)[[2]] <- as.list(paste(names(lambda.em), "_err", sep=""))
   options("warn"=0)
   returns <- list(tauv=tauv, vdisp.em=vdisp.em, vdisp.st=vdisp.st, 
                   tauv_err=tauv_err, vdisp.em_err=vdisp.em_err, vdisp.st_err=vdisp.st_err,

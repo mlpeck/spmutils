@@ -1,15 +1,14 @@
 stanfit_one <- function(gdat, dz, nnfits, which.spax, 
                         stan_model=NULL,
-                        stan_file="spm_dust_norm.stan", stan_filedir="~/spmcode/",
+                        stan_file="spm_dust_simpl.stan", stan_filedir="~/spmcode/",
                         iter=500, warmup=250, thin=1, chains=4, 
                         OP=FALSE, ...) {
     
     require(rstan)
-    i <- which.spax[1]
-    j <- which.spax[2]
-    z <- gdat$meta$z+dz[i, j]
-    flux <- gdat$flux[i, j, ]
-    ivar <- gdat$ivar[i, j, ]
+    i <- which.spax
+    z <- gdat$meta$z+dz[i]
+    flux <- gdat$flux[i, ]
+    ivar <- gdat$ivar[i, ]
     lambda.rest <- gdat$lambda/(1+z)
     logl <- log10(lambda.rest)
     nsim <- (iter-warmup)*chains
@@ -18,7 +17,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
         
     lib.ssp$lambda <- airtovac(lib.ssp$lambda)
     lib.st <- regrid(lambda.rest, lib.ssp)
-    x.st <- blur.lib(lib.st, nnfits$vdisp.st[i, j])
+    x.st <- blur.lib(lib.st, nnfits$vdisp.st[i])
     n.st <- ncol(x.st)
     nz <- length(Z)
     nt <- n.st/nz
@@ -29,7 +28,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     norm_st <- colMeans(x.st[allok,])
     x.st <- scale(x.st[allok,], center=FALSE, scale=norm_st)
     
-    x.em <- make_emlib(emlines, nnfits$vdisp.em[i, j], logl, allok)
+    x.em <- make_emlib(emlines, nnfits$vdisp.em[i], logl, allok)
     in.em <- x.em$in_em
     x.em <- x.em$x_em
     n.em <- ncol(x.em)
@@ -80,7 +79,6 @@ stanfit_batch <- function(gdat, dz, nnfits,
                         OP=FALSE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
     dims <- dim(gdat$flux)
-    if (dims[2] > 1) stop("Use stacked data!")
     dz <- dz$dz
     nsim <- (iter-warmup)*chains
     nt <- length(ages)
@@ -109,8 +107,8 @@ stanfit_batch <- function(gdat, dz, nnfits,
       end <- nr
     }
     for (i in start:end) {
-        if (is.na(dz[i, 1]) || is.na(nnfits$Mstar[i, 1])) next
-        sfit <- stanfit_one(gdat, dz, nnfits, which.spax=c(i, 1),
+        if (is.na(dz[i]) || is.na(nnfits$Mstar[i])) next
+        sfit <- stanfit_one(gdat, dz, nnfits, which.spax=i,
                                stan_model=smodel,
                                iter = iter, warmup = warmup, chains = chains, OP=OP, ...)
         plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
@@ -423,9 +421,9 @@ sum_batchfits <- function(gdat, nnfits, sfits, intr_bd=2.86, clim=0.95) {
     
     d4000_n <- nnfits$d4000_n
     d4000_n_err <- nnfits$d4000_n_err
-    lick_hd_a <- nnfits$lick[,,'HdeltaA']
-    lick_hd_a_err <- nnfits$lick.err[,,'HdeltaA_err']
-    mgfe <- sqrt(nnfits$lick[,,'Mg_b']*(0.72*nnfits$lick[,,'Fe5270']+0.28*nnfits$lick[,,'Fe5335']))
+    lick_hd_a <- nnfits$lick[,'HdeltaA']
+    lick_hd_a_err <- nnfits$lick.err[,'HdeltaA_err']
+    mgfe <- sqrt(nnfits$lick[,'Mg_b']*(0.72*nnfits$lick[,'Fe5270']+0.28*nnfits$lick[,'Fe5335']))
     mgfe[is.nan(mgfe)] <- NA
     
     ## tauv from batch fits

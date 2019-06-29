@@ -1,20 +1,9 @@
-readcube <- function(fname, drpcat=NULL, release=15) {
+readcube <- function(fname, drpcat=NULL, flatten=TRUE) {
     require(FITSio)
-    if (release >= 15) {
-      hdu_lambda <- 6
-      hdu_gimg <- 12
-      hdu_rimg <- 13
-      hdu_iimg <- 14
-      hdu_zimg <- 15
-    } else {
-      hdu_lambda <- 4
-      hdu_gimg <- 8
-      hdu_rimg <- 9
-      hdu_iimg <- 10
-      hdu_zimg <- 11
-    }
+    
     ff <- file(fname, "rb")
     hd0 <- parseHdr(readFITSheader(ff))
+    versdrp <- hd0[grep("VERSDRP3", hd0)+1]
     mangaid <- hd0[grep("MANGAID", hd0)+1]
     plateifu <- hd0[grep("PLATEIFU", hd0)+1]
     ra <- as.numeric(hd0[grep("IFURA", hd0)+1])
@@ -31,6 +20,20 @@ readcube <- function(fname, drpcat=NULL, release=15) {
     cd2 <- as.numeric(hd0[grep("CD2_2", hd0)+1])    
     close(ff)
     
+    if (versdrp >= "v2_4_3") {
+      hdu_lambda <- 6
+      hdu_gimg <- 12
+      hdu_rimg <- 13
+      hdu_iimg <- 14
+      hdu_zimg <- 15
+    } else {
+      hdu_lambda <- 4
+      hdu_gimg <- 8
+      hdu_rimg <- 9
+      hdu_iimg <- 10
+      hdu_zimg <- 11
+    }
+    
     flux <- readFITS(fname, hdu=1)$imDat
     ivar <- readFITS(fname, hdu=2)$imDat
     mask <- readFITS(fname, hdu=3)$imDat
@@ -41,6 +44,7 @@ readcube <- function(fname, drpcat=NULL, release=15) {
     extc <- elaw(lambda, ebv)
     nx <- dim(flux)[1]
     ny <- dim(flux)[2]
+    nl <- dim(flux)[3]
     for (ix in 1:nx) {
         for (iy in 1:ny) {
             flux[ix,iy,] <- flux[ix,iy,]*extc
@@ -68,26 +72,43 @@ readcube <- function(fname, drpcat=NULL, release=15) {
     } else {
         z <- zdist <- NA
     }
-    list(meta=list(mangaid=mangaid, plateifu=plateifu, ra=ra, dec=dec, l=l, b=b, 
+    if (flatten) {
+      fn <- function(x) all(is.na(x))
+      
+      hasdata <- as.vector(!apply(flux, c(1,2), fn))
+      nxy <- length(which(hasdata))
+      
+      xy <- expand.grid(xpos, ypos)
+      xpos <- xy[hasdata,1]
+      ypos <- xy[hasdata,2]
+      
+      ra.f <- as.vector(ra.f)[hasdata]
+      dec.f <- as.vector(dec.f)[hasdata]
+      
+      flux <- matrix(flux[hasdata], nrow=nxy)
+      ivar <- matrix(ivar[hasdata], nrow=nxy)
+      mask <- matrix(mask[hasdata], nrow=nxy)
+      
+      gimg <- as.vector(gimg)[hasdata]
+      rimg <- as.vector(rimg)[hasdata]
+      iimg <- as.vector(iimg)[hasdata]
+      zimg <- as.vector(zimg)[hasdata]
+    }
+    list(meta=list(mangaid=mangaid, plateifu=plateifu, versdrp=versdrp, 
+                   ra=ra, dec=dec, l=l, b=b, 
                    ebv=ebv, z=z, zdist=zdist, cpix=c(cpix1, cpix2)),
         xpos=xpos, ypos=ypos,
-        lambda=lambda, ra.f=ra.f, dec.f=dec.f, flux=flux, ivar=ivar, snr=snr,
-         gimg=gimg, rimg=rimg, iimg=iimg, zimg=zimg)
+        lambda=lambda, ra.f=ra.f, dec.f=dec.f, 
+        flux=flux, ivar=ivar, mask=mask, snr=snr,
+        gimg=gimg, rimg=rimg, iimg=iimg, zimg=zimg)
 }
 
-readrss <- function(fname, drpcat=NULL, ndither=3, release=15) {
+readrss <- function(fname, drpcat=NULL, ndither=3) {
     require(FITSio)
-    if (release >= 15) {
-      hdu_lambda <- 6
-      hdu_xpos <- 12
-      hdu_ypos <- 13
-    } else {
-      hdu_lambda <- 5
-      hdu_xpos <- 9
-      hdu_ypos <- 10
-    }
+
     ff <- file(fname, "rb")
     hd0 <- parseHdr(readFITSheader(ff))
+    versdrp <- hd0[grep("VERSDRP3", hd0)+1]
     mangaid <- hd0[grep("MANGAID", hd0)+1]
     plateifu <- hd0[grep("PLATEIFU", hd0)+1]
     nexp <- as.numeric(hd0[grep("NEXP", hd0)+1])
@@ -97,6 +118,16 @@ readrss <- function(fname, drpcat=NULL, ndither=3, release=15) {
     b <- as.numeric(hd0[grep("IFUGLAT", hd0)+1])    
     ebv <- as.numeric(hd0[grep("EBVGAL", hd0)+1])
     close(ff)
+    
+    if (versdrp >= "v2_4_3") {
+      hdu_lambda <- 6
+      hdu_xpos <- 12
+      hdu_ypos <- 13
+    } else {
+      hdu_lambda <- 5
+      hdu_xpos <- 9
+      hdu_ypos <- 10
+    }
     
     flux <- readFITS(fname, hdu=1)$imDat
     ivar <- readFITS(fname, hdu=2)$imDat
@@ -133,27 +164,19 @@ readrss <- function(fname, drpcat=NULL, ndither=3, release=15) {
     } else {
         z <- zdist <- NA
     }
-    list(meta=list(mangaid=mangaid, plateifu=plateifu, nexp=nexp, ra=ra, dec=dec, l=l, b=b, 
+    list(meta=list(mangaid=mangaid, plateifu=plateifu, versdrp=versdrp, 
+                   nexp=nexp, ra=ra, dec=dec, l=l, b=b, 
                    ebv=ebv, z=z, zdist=zdist),
-         lambda=lambda, flux=flux, ivar=ivar, snr=snr,
-         xpos=xpos, ypos=ypos
-        )
+                   lambda=lambda, flux=flux, ivar=ivar, snr=snr,
+                   xpos=xpos, ypos=ypos)
 }
 
-stackrss <- function(gdat, dz=NULL) {
+stackrss <- function(gdat) {
     meta <- gdat$meta
     ivar <- apply(gdat$ivar, c(1,3), sum, na.rm=TRUE)
     ivar[ivar <= 0] <- NA
     flux <- apply(gdat$flux*gdat$ivar, c(1,3), sum, na.rm=TRUE)/ivar
     snr <- apply(sqrt(pmax(flux,0)^2*ivar), 1, median, na.rm=TRUE)
-    nr <- nrow(flux)
-    nc <- ncol(flux)
-    dim(flux) <- c(nr, 1, nc)
-    dim(ivar) <- c(nr, 1, nc)
-    snr <- matrix(snr, nr, 1)
-    if (!is.null(dz)) {
-        dz <- rowMeans(dz, na.rm=TRUE)
-    }
     xpos <- rowMeans(gdat$xpos)
     ypos <- rowMeans(gdat$ypos)
     dec.f <- meta$dec + ypos/3600
