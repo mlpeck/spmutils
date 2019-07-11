@@ -162,9 +162,9 @@ bin2d <- function(gdat, snrthresh=6.25, f.fluxok=0.8, wl.limits = c(3700, 7500),
   bins <- unique(classe)
   nbins <- length(bins)
   fibersinbin <- numeric(nbins)
-  flux.b <- array(0, dim=c(nbins, 1, length(gdat$lambda)))
-  ivar.b <- array(0, dim=c(nbins, 1, length(gdat$lambda)))
-  snr <- matrix(0, nbins, 1)
+  flux.b <- matrix(0, nrow=nbins, ncol=length(gdat$lambda))
+  ivar.b <- matrix(0, nrow=nbins, ncol=length(gdat$lambda))
+  snr <- numeric(nbins)
   
   xpos <- final$xnode
   ypos <- final$ynode

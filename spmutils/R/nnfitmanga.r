@@ -171,7 +171,7 @@ nnfitmanga <- function(gdat, dz, lib.ssp, age, Z, gri.ssp, mstar,
     tlong$variable[tlong$variable=="gflux"] <- "fitted"
     base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
                   ylab="", col=val, 
-                  main=paste("(",i,", ",j,") xi2= ", 
+                  main=paste("(",i,") xi2= ", 
                              format(xi2[i], digits=3), sep=""))
     add.resid <- facet_grid(variable ~ ., scale="free_y")
     plot(base+add.resid)

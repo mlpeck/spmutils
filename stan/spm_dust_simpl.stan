@@ -58,7 +58,5 @@ generated quantities {
         log_lik[i] = normal_lpdf(gflux[i] | mu_g[i], g_std[i]);
         mu_g[i] = norm_g * mu_g[i];
     }
-    b_st = a * norm_g * b_st;
-    b_em = norm_g * b_em;
 }
 

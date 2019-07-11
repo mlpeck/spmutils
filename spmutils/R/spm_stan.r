@@ -12,7 +12,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     lambda.rest <- gdat$lambda/(1+z)
     logl <- log10(lambda.rest)
     nsim <- (iter-warmup)*chains
-    T.gyr <- 10^(age-9)
+    T.gyr <- 10^(ages-9)
     dT <- diff(c(0, T.gyr))
         
     lib.ssp$lambda <- airtovac(lib.ssp$lambda)
@@ -119,7 +119,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
         tauv[,i] <- post$tauv
         in_em[sfit$in.em,i] <- sfit$in.em
         walltime[i] <- max(rowSums(get_elapsed_time(sfit$stanfit)))
-        sp <- get_sampler_params(sfit$stanfit)
+        sp <- get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
         divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
         max_treedepth[i] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
         norm_g[i] <- sfit$norm_g
@@ -144,6 +144,10 @@ get_sfh <- function(..., z, fibersinbin=1, density=TRUE, tsf=0.1) {
     post <- rstan::extract(ins$stanfit)
     b_st <- post$b_st
     norm_st <- ins$norm_st
+    if (exists("a", post)) {
+      b_st <- b_st*post$a*ins$norm_g
+      norm_st <- 1/norm_st
+    }
   } else {
     b_st <- ins$b_st
     norm_st <- ins$norm_st
@@ -185,9 +189,19 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   nt <- length(ages)
   nz <- dims[2]/nt
   nf <- dims[3]
+  if (exists("a", sfits)) {
+    a <- sfits$a
+    norm_g <- sfits$norm_g
+    norm_st <- 1/norm_st
+  } else {
+    a <- matrix(1, nsim, nf)
+    norm_g <- rep(1, nf)
+  }
   z <- gdat$meta$z
-  if (!exists(gdat$fibersinbin)) {
+  if (!exists("fibersinbin", gdat)) {
     fibersinbin <- rep(1, nf)
+  } else {
+    fibersinbin <- gdat$fibersinbin
   }
   
   sfh_post <- array(NA, dim=c(nsim, nt, nf))
@@ -200,7 +214,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
-    sfi <- get_sfh(b_st[,,i], norm_st[i,], z=z, fibersinbin=fibersinbin[i])
+    sfi <- get_sfh(b_st=b_st[,,i]*a[,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i])
     sfh_post[,,i] <- sfi$sfh_post
     mgh_post[,,i] <- sfi$mgh_post
     totalmg_post <- totalmg_post + sfi$totalmg_post
@@ -223,6 +237,10 @@ get_proxies <- function(...) {
     post <- rstan::extract(ins$stanfit)
     b_st <- post$b_st
     norm_st <- ins$norm_st
+    if (exists("a", post)) {
+      b_st <- b_st*post$a*ins$norm_g
+      norm_st <- 1/norm_st
+    }
   } else {
     b_st <- ins$b_st
     norm_st <- ins$norm_st
@@ -249,12 +267,18 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
     b_em <- post$b_em
     norm_st <- ins$norm_st
     norm_em <- ins$norm_em
-  } else {
+    if (exists("a", post)) {
+      b_st <- b_st*post$a*ins$norm_g
+      b_em <- b_em*ins$norm_g
+      norm_st <- 1/norm_st
+    }
+ } else {
     b_st <- ins$b_st
     b_em <- ins$b_em
     norm_st <- ins$norm_st
     norm_em <- ins$norm_em
   }
+  emlines <- emlines[ins$in.em]
   b_st <- t(t(b_st)*norm_st)
   ne <- ncol(b_em)
   nsim <- nrow(b_em)
@@ -285,7 +309,16 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
 batch_em <- function(gdat, sfits, ew_width=15) {
   nsim <- dim(sfits$b_em)[1]
   ne <- length(emlines)
-  nf <- length(gdat$fibersinbin)
+  nf <- length(gdat$xpos)
+  norm_st <- sfits$norm_st
+  if (exists("a", sfits)) {
+    a <- sfits$a
+    norm_g <- sfits$norm_g
+    norm_st <- 1/sfits$norm_st
+  } else {
+    a <- matrix(1, nsim, nf)
+    norm_g <- rep(1, nf)
+  }
   
   flux_em <- array(NA, dim=c(nsim, ne, nf))
   sigma_logl_em <- array(NA, dim=c(nsim, ne, nf))
@@ -293,13 +326,19 @@ batch_em <- function(gdat, sfits, ew_width=15) {
   
   for (i in 1:nf) {
     if (is.na(sfits$b_st[1, 1, i])) next
-    in_em_i <- sfits$in_em[!is.na(in_em[,i]), i]
-    emi <- get_em(sfits$b_em[,in_em_i,i], sfits$b_st[,,i], sfits$norm_em[i], sfits$norm_st[i,], 
-                  emlines=emlines[in_em_i], z=gdat$meta$z,
+    in.em <- sfits$in_em[!is.na(sfits$in_em[,i]), i]
+    if(is.null(dim(norm_st))) {
+      nst <- norm_st[i]
+    } else {
+      nst <- norm_st[,i]
+    }
+    emi <- get_em(b_em=sfits$b_em[,in.em,i]*norm_g[i], b_st=sfits$b_st[,,i]*a[,i]*norm_g[i], 
+                  norm_em=sfits$norm_em[i], norm_st=nst, 
+                  in.em=in.em, z=gdat$meta$z,
                   fibersinbin=gdat$fibersinbin[i], ew_width=ew_width)
-    flux_em[,in_em_i,i] <- emi$flux_em
-    sigma_logl_em[,in_em_i,i] <- emi$sigma_logl_em
-    ew_em[,in_em_i,i] <- emi$ew_em
+    flux_em[,in.em,i] <- emi$flux_em
+    sigma_logl_em[,in.em,i] <- emi$sigma_logl_em
+    ew_em[,in.em,i] <- emi$ew_em
   }
   dimnames(flux_em)[[2]] <- names(emlines)
   dimnames(sigma_logl_em)[[2]] <- names(emlines)
@@ -376,7 +415,7 @@ get_lineratios <- function(flux_em, tauv, tauv_mult=1, alaw=calzetti) {
 }
 
   
-sum_batchfits <- function(gdat, nnfits, sfits, intr_bd=2.86, clim=0.95) {
+sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.86, clim=0.95) {
     
     tauv.bd <- function(flux_em, intr_bd, alaw) {
       bd <- flux_em[,'h_alpha']/flux_em[,'h_beta']
@@ -480,7 +519,12 @@ sum_batchfits <- function(gdat, nnfits, sfits, intr_bd=2.86, clim=0.95) {
       relsfr_lo[i] <- quants[1]
       relsfr_hi[i] <- quants[2]
       
-      proxi <- get_proxies(sfits$b_st[,,i])
+      if (is.null(dim(sfits$norm_st))) {
+        norm_st <- sfits$norm_st[i]
+      } else {
+        norm_st <- 1/sfits$norm_st[,i]
+      }
+      proxi <- get_proxies(b_st=sfits$b_st[,,i], norm_st=norm_st)
       
       tbar_m[i] <- mean(proxi$tbar)
       tbar_std[i] <- sd(proxi$tbar)
