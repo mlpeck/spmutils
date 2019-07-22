@@ -2,7 +2,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         stan_model=NULL,
                         stan_file="spm_dust_simpl.stan", stan_filedir="~/spmcode/",
                         iter=500, warmup=250, thin=1, chains=4, 
-                        OP=FALSE, ...) {
+                        iter_opt=5000, OP=FALSE, ...) {
     
     require(rstan)
     i <- which.spax
@@ -50,7 +50,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
       stan_model <- rstan::stan_model(file=file.path(stan_filedir, stan_file))
     }
     
-    spm_opt <- optimizing(stan_model, data=spm_data, as_vector=FALSE, verbose=TRUE)
+    spm_opt <- optimizing(stan_model, data=spm_data, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
     
     init_pars <- function(chain_id) {
       b_st <- spm_opt$par$b_st
@@ -75,7 +75,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         
 stanfit_batch <- function(gdat, dz, nnfits,
                         stan_file="spm_dust_norm.stan", stan_filedir="~/spmcode/",
-                        iter=500, warmup=250, chains=4,
+                        iter=500, warmup=250, chains=4, iter_opt=5000,
                         OP=FALSE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
     dims <- dim(gdat$flux)
@@ -110,7 +110,8 @@ stanfit_batch <- function(gdat, dz, nnfits,
         if (is.na(dz[i]) || is.na(nnfits$Mstar[i])) next
         sfit <- stanfit_one(gdat, dz, nnfits, which.spax=i,
                                stan_model=smodel,
-                               iter = iter, warmup = warmup, chains = chains, OP=OP, ...)
+                               iter = iter, warmup = warmup, chains = chains, 
+                               iter_opt=iter_opt, OP=OP, ...)
         plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
         post <- extract(sfit$stanfit)
         b_st[,,i] <- post$b_st
@@ -145,7 +146,7 @@ get_sfh <- function(..., z, fibersinbin=1, density=TRUE, tsf=0.1) {
     b_st <- post$b_st
     norm_st <- ins$norm_st
     if (exists("a", post)) {
-      b_st <- b_st*post$a*ins$norm_g
+      b_st <- b_st*as.vector(post$a)*ins$norm_g
       norm_st <- 1/norm_st
     }
   } else {

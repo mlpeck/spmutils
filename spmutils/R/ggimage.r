@@ -54,9 +54,12 @@ ggbinplot <- function(gdat, z, zlab=NULL,
   } else {
     df2 <- df
   }
+  df3 <- df2[grDevices::chull(df2), ]
+  df3[df3 < 0] <- df3[df3 < 0] - 0.7
+  df3[df3 >= 0] <- df3[df3 >=0] + 0.7
   prange <- c(range(df2$x), range(df2$y)) + c(-1,1,-1,1)
   g1 <- ggplot(df) + ggforce::geom_voronoi_tile(aes(x=x, y=y, fill=z), na.rm=TRUE,
-                                       bound=prange, show.legend=show.legend)
+                                       bound=df3, show.legend=show.legend)
   if (addborders) {
     g1 <- g1 + ggforce::geom_voronoi_segment(aes(x=x,y=y), bound=prange)
   }
