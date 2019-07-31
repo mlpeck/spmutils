@@ -1,8 +1,10 @@
 stanfit_one <- function(gdat, dz, nnfits, which.spax, 
                         stan_model=NULL,
                         stan_file="spm_dust_simpl.stan", stan_filedir="~/spmcode/",
+                        iter_opt=5000, 
+                        init_opt = list(npars=4, is_simpl=c(FALSE, TRUE, FALSE, FALSE), jitter=TRUE, jv=1.e-5),
                         iter=500, warmup=250, thin=1, chains=4, 
-                        iter_opt=5000, OP=FALSE, ...) {
+                        OP=FALSE, ...) {
     
     require(rstan)
     i <- which.spax
@@ -51,16 +53,22 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     }
     
     spm_opt <- optimizing(stan_model, data=spm_data, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
+    names_pars <- names(spm_opt$par)[1:init_opt$npars]
     
     init_pars <- function(chain_id) {
-      b_st <- spm_opt$par$b_st
-      b_em <- spm_opt$par$b_em
-      tauv <- spm_opt$par$tauv
-      b_st <- b_st + runif(length(b_st), max=1.e-5)
-      b_st <- b_st/sum(b_st)
-      b_em <- b_em + runif(length(b_em), max=1.e-5)
-      tauv <- tauv + runif(1, max=1.e-5)
-      list(a=spm_opt$par$a, b_st=b_st, b_em=b_em, tauv=tauv)
+      retval <- list()
+      for (i in 1:init_opt$npars) {
+        assign(names_pars[i], spm_opt$par[[names_pars[i]]])
+        if (init_opt$jitter) {
+          assign(names_pars[i], get(names_pars[i]) +
+                  runif(length(get(names_pars[i])), max= init_opt$jv))
+        }
+        if (init_opt$is_simpl[i]) {
+          assign(names_pars[i], get(names_pars[i])/sum(get(names_pars[i])))
+        }
+        retval[[names_pars[i]]] <- get(names_pars[i])
+      }
+      retval
     }
     
     stanfit <- sampling(stan_model, data=spm_data,
@@ -75,7 +83,9 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         
 stanfit_batch <- function(gdat, dz, nnfits,
                         stan_file="spm_dust_norm.stan", stan_filedir="~/spmcode/",
-                        iter=500, warmup=250, chains=4, iter_opt=5000,
+                        iter_opt=5000, 
+                        init_opt = list(npars=4, is_simpl=c(FALSE, TRUE, FALSE, FALSE), jitter=TRUE, jv=1.e-5),
+                        iter=500, warmup=250, chains=4,
                         OP=FALSE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
     dims <- dim(gdat$flux)
@@ -109,9 +119,10 @@ stanfit_batch <- function(gdat, dz, nnfits,
     for (i in start:end) {
         if (is.na(dz[i]) || is.na(nnfits$Mstar[i])) next
         sfit <- stanfit_one(gdat, dz, nnfits, which.spax=i,
-                               stan_model=smodel,
-                               iter = iter, warmup = warmup, chains = chains, 
-                               iter_opt=iter_opt, OP=OP, ...)
+                            stan_model=smodel,
+                            iter_opt=iter_opt, init_opt=init_opt,
+                            iter = iter, warmup = warmup, chains = chains, 
+                            OP=OP, ...)
         plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
         post <- extract(sfit$stanfit)
         b_st[,,i] <- post$b_st
@@ -145,8 +156,8 @@ get_sfh <- function(..., z, fibersinbin=1, density=TRUE, tsf=0.1) {
     post <- rstan::extract(ins$stanfit)
     b_st <- post$b_st
     norm_st <- ins$norm_st
-    if (exists("a", post)) {
-      b_st <- b_st*as.vector(post$a)*ins$norm_g
+    if (exists("norm_g", ins)) {
+      b_st <- b_st*ins$norm_g
       norm_st <- 1/norm_st
     }
   } else {
@@ -190,12 +201,10 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   nt <- length(ages)
   nz <- dims[2]/nt
   nf <- dims[3]
-  if (exists("a", sfits)) {
-    a <- sfits$a
+  if (exists("norm_g", sfits)) {
     norm_g <- sfits$norm_g
     norm_st <- 1/norm_st
   } else {
-    a <- matrix(1, nsim, nf)
     norm_g <- rep(1, nf)
   }
   z <- gdat$meta$z
@@ -215,7 +224,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
-    sfi <- get_sfh(b_st=b_st[,,i]*a[,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i])
+    sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i])
     sfh_post[,,i] <- sfi$sfh_post
     mgh_post[,,i] <- sfi$mgh_post
     totalmg_post <- totalmg_post + sfi$totalmg_post
@@ -268,8 +277,8 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
     b_em <- post$b_em
     norm_st <- ins$norm_st
     norm_em <- ins$norm_em
-    if (exists("a", post)) {
-      b_st <- b_st*post$a*ins$norm_g
+    if (exists("norm_g", ins)) {
+      b_st <- b_st*ins$norm_g
       b_em <- b_em*ins$norm_g
       norm_st <- 1/norm_st
     }
@@ -312,12 +321,10 @@ batch_em <- function(gdat, sfits, ew_width=15) {
   ne <- length(emlines)
   nf <- length(gdat$xpos)
   norm_st <- sfits$norm_st
-  if (exists("a", sfits)) {
-    a <- sfits$a
+  if (exists("norm_g", sfits)) {
     norm_g <- sfits$norm_g
     norm_st <- 1/sfits$norm_st
   } else {
-    a <- matrix(1, nsim, nf)
     norm_g <- rep(1, nf)
   }
   
@@ -333,7 +340,7 @@ batch_em <- function(gdat, sfits, ew_width=15) {
     } else {
       nst <- norm_st[,i]
     }
-    emi <- get_em(b_em=sfits$b_em[,in.em,i]*norm_g[i], b_st=sfits$b_st[,,i]*a[,i]*norm_g[i], 
+    emi <- get_em(b_em=sfits$b_em[,in.em,i]*norm_g[i], b_st=sfits$b_st[,,i]*norm_g[i], 
                   norm_em=sfits$norm_em[i], norm_st=nst, 
                   in.em=in.em, z=gdat$meta$z,
                   fibersinbin=gdat$fibersinbin[i], ew_width=ew_width)
