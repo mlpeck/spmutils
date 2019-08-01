@@ -41,6 +41,22 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
     g1
 }
 
+## simple 2D spatial interpolation
+
+fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=100, usefields=TRUE) {
+    ny <- max(round((max(dec)-min(dec))*3600/dxy), min_ny)
+    nx <- ny
+    if (usefields) {
+      xy <- cbind(ra, dec)
+      zxy <- fields::Tps(x=xy, Y=zvals, lon.lat=TRUE, miles=FALSE, lambda=0)
+      zsurf <- fields::predictSurface(zxy, nx=nx, ny=ny)
+    } else {
+      allok <- complete.cases(ra, dec, zvals)
+      zsurf <- akima::interp(x=ra[allok], y=dec[allok], z=zvals[allok], nx=nx, ny=ny)
+    }
+    list(ra=zsurf$x, dec=zsurf$y, z=zsurf$z)
+}
+
 ggbinplot <- function(gdat, z, zlab=NULL, 
                       addfiberpos=TRUE, addcentroid=FALSE, 
                       addborders=TRUE, addfp=TRUE,
