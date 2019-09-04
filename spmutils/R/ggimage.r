@@ -66,7 +66,7 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
     df2 <- data.frame(x = gdat$x.orig, y = gdat$y.orig)
   }
   else {
-    df2 <- df
+    df2 <- df[ , -3]
   }
   df3 <- df2[grDevices::chull(df2), ]
   df3[df3 < 0] <- df3[df3 < 0] - 0.7
