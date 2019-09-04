@@ -25,7 +25,6 @@ data {
     vector[nt*nz] norm_st;
     real norm_em;
     matrix[nl, nt*nz] sp_st; //the stellar library
-    vector[nt*nz] dT;        // width of age bins
     matrix[nl, n_em] sp_em; //emission line profiles
 }
 parameters {

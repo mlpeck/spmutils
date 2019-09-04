@@ -62,7 +62,7 @@ generated quantities {
     b_st[ind_young] += b_st_young;
     
     for (i in 1:nl) {
-        gflux_rep[i] = normal_rng(mu_g[i] , g_std[i]);
+        gflux_rep[i] = norm_g * normal_rng(mu_g[i] , g_std[i]);
         log_lik[i] = normal_lpdf(gflux[i] | mu_g[i], g_std[i]);
         mu_g[i] = norm_g * mu_g[i];
     }

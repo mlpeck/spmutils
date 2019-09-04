@@ -37,30 +37,30 @@ functions {
   }
 }
 data {
-  int<lower=1> nf;  //number of flux values
-  int<lower=1> nr; //rows in pc matrix
+  int<lower=1> nr; //rows in ssp library matrix
   int<lower=1> nt;  //number of stellar ages
   int<lower=1> nz;  //number of metallicity bins
+  int<lower=1> nl;  //number of flux values
   int<lower=1> n_em; //number of emission lines
   int<lower=1> kl; //kernel length
   
-  vector[nf] lambda;
-  vector[nf] gflux;
-  vector<lower=0>[nf] g_std;
-  int<lower=1> ins[nf];  //indexes of the non-missing flux values
+  vector[nl] lambda;
+  vector[nl] gflux;
+  vector<lower=0>[nl] g_std;
+  real norm_g;
+  int<lower=1> ins[nl];  //indexes of the non-missing flux values
   matrix[nr, nt*nz] sp_st;     //predictors
-  vector[nt*nz] dT;        // width of age bins
   vector[n_em] lambda_em;
-  real norm_em;  //normalizing constant to make emission line contributions <~ 1
   
 }
 transformed data {
-  vector[nf] lpl = (10000./log(10.)) * log(lambda);
+  vector[nl] lpl = (10000./log(10.)) * log(lambda);
   vector[n_em] lp_em = (10000./log(10.)) * log(lambda_em);
 }
 parameters {
   simplex[kl] kernel;
-  vector<lower=0>[nt*nz] b_st;
+  real a;
+  simplex[nt*nz] b_st_s;
   vector[n_em] b_em;
   real<lower=1.> sigma_em;
   real voff_em;
@@ -69,31 +69,36 @@ parameters {
 }
 model {
   vector[nr-kl+1] gmod;
-  matrix[nf, n_em] lprof;
+  matrix[nl, n_em] lprof;
 
-  b_st ~ cauchy(0., 4. * dT);
-  b_em ~ cauchy(0., 1.);
+  b_em ~ normal(0., 100.);
+  a ~ normal(1., 10.);
   sigma_em ~ normal(0., 10.);
   voff_em ~ normal(0., 10.);
   h ~ normal(0., 0.25);
   tauv ~ normal(0., 1.);
   
-  gmod = convolve(sp_st * b_st, kernel);
-  lprof = norm_em * emprof(lpl, lp_em, sigma_em, voff_em, h); 
+  gmod = a * convolve(sp_st * b_st_s, kernel);
+  lprof = emprof(lpl, lp_em, sigma_em, voff_em, h); 
   gflux ~ normal(gmod[ins] .* calzetti(lambda, tauv)
               + lprof * b_em, g_std);
 }
 generated quantities {
-  vector[nf] mu_st;
-  vector[nf] mu_g;
-  vector[nf] gflux_rep;
-  vector[nf] log_lik;
+  vector[nt*nz] b_st;
+  vector[nl] mu_st;
+  vector[nl] mu_g;
+  vector[nl] gflux_rep;
+  vector[nl] log_lik;
+  real ll;
   
+  b_st = a * b_st_s;
   mu_st = (convolve(sp_st * b_st, kernel)[ins]) .* calzetti(lambda, tauv);
-  mu_g = mu_st + norm_em * emprof(lpl, lp_em, sigma_em, voff_em, h) * b_em;
-  for (i in 1:nf) {
-    gflux_rep[i] = normal_rng(mu_g[i], g_std[i]);
+  mu_g = mu_st + emprof(lpl, lp_em, sigma_em, voff_em, h) * b_em;
+  for (i in 1:nl) {
+    gflux_rep[i] = norm_g * normal_rng(mu_g[i], g_std[i]);
     log_lik[i] = normal_lpdf(gflux[i] | mu_g[i], g_std[i]);
+    mu_g[i] = norm_g * mu_g[i];
   }
+  ll = sum(log_lik);
 }
 

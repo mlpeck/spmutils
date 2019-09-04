@@ -57,44 +57,47 @@ fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=100, usefields=TRUE) {
     list(ra=zsurf$x, dec=zsurf$y, z=zsurf$z)
 }
 
-ggbinplot <- function(gdat, z, zlab=NULL, 
-                      addfiberpos=TRUE, addcentroid=FALSE, 
-                      addborders=TRUE, addfp=TRUE,
-                      show.legend=TRUE, na.value="grey95", palette="Set1",
-                      colors=viridis::viridis(256), fpcolor="red") {
+ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = FALSE, 
+  addborders = TRUE, addfp = FALSE, show.legend = TRUE, na.value = "grey95", 
+  palette = "Set1", colors = viridis::viridis(256), fpcolor = "red") {
   require(ggplot2)
-  
-  df <- data.frame(x=gdat$xpos, y=gdat$ypos, z=z)
-  if (exists("x.orig", gdat)) {   ## this is a voronoi binned data set
-    df2 <- data.frame(x=gdat$x.orig, y=gdat$y.orig)
-  } else {
+  df <- data.frame(x = gdat$xpos, y = gdat$ypos, z = z)
+  if (exists("x.orig", gdat)) {
+    df2 <- data.frame(x = gdat$x.orig, y = gdat$y.orig)
+  }
+  else {
     df2 <- df
   }
   df3 <- df2[grDevices::chull(df2), ]
   df3[df3 < 0] <- df3[df3 < 0] - 0.7
-  df3[df3 >= 0] <- df3[df3 >=0] + 0.7
-  prange <- c(range(df2$x), range(df2$y)) + c(-1,1,-1,1)
-  g1 <- ggplot(df) + ggforce::geom_voronoi_tile(aes(x=x, y=y, fill=z), na.rm=TRUE,
-                                       bound=df3, show.legend=show.legend)
+  df3[df3 >= 0] <- df3[df3 >= 0] + 0.7
+  prange <- c(range(df2$x), range(df2$y)) + c(-1, 1, -1, 1)
+  g1 <- ggplot(df) + ggforce::geom_voronoi_tile(aes(x = x, 
+    y = y, fill = z, group=-1L), na.rm = TRUE, bound = df3, show.legend = show.legend)
   if (addborders) {
-    g1 <- g1 + ggforce::geom_voronoi_segment(aes(x=x,y=y), bound=prange)
+    g1 <- g1 + ggforce::geom_voronoi_segment(aes(x = x, 
+      y = y), bound = prange)
   }
   if (addcentroid) {
-    g1 <- g1 + geom_point(aes(x=x, y=y), shape=21, size=2)
+    g1 <- g1 + geom_point(aes(x = x, y = y), shape = 21, 
+      size = 2)
   }
   if (addfiberpos) {
-    g1 <- g1 + geom_point(aes(x=x, y=y), data=df2)
+    g1 <- g1 + geom_point(aes(x = x, y = y), data = df2)
   }
   if (addfp) {
-    g1 <- g1 + ggalt::geom_encircle(aes(x=x, y=y), data=df2, expand=0.02, color=fpcolor, size=2)
+    g1 <- g1 + ggalt::geom_encircle(aes(x = x, y = y), data = df2, 
+      expand = 0.02, color = fpcolor, size = 2)
   }
   if (!is.null(zlab) & show.legend) {
-    g1 <- g1 + labs(fill=zlab)
+    g1 <- g1 + labs(fill = zlab)
   }
   if (is.factor(z)) {
-    g1 <- g1 + scale_fill_brewer(type="qual", palette=palette, na.value=na.value, drop=FALSE)
-  } else {
-    g1 <- g1 + scale_fill_gradientn(colors=colors, na.value=na.value)
+    g1 <- g1 + scale_fill_brewer(type = "qual", palette = palette, 
+      na.value = na.value, drop = FALSE)
+  }
+  else {
+    g1 <- g1 + scale_fill_gradientn(colors = colors, na.value = na.value)
   }
   plot(g1)
   g1

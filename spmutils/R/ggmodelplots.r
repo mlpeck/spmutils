@@ -215,7 +215,6 @@ plotpp <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise
     pp <- rstan::extract(sfit$stanfit)$gflux_rep
     if (exists("norm_g", sfit)) {
       gflux <- gflux * sfit$norm_g
-      pp <- pp * sfit$norm_g
     }
     ylims <- apply(pp, 2, quantile, probs=quants)
     df <- data.frame(lambda=lambda, gflux=gflux, fitted=colMeans(pp),
