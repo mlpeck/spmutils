@@ -53,11 +53,12 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     }
     
     b <- nnfits$nnfits[i,]
-    b_st_s <- b[1:n.st] * norm_st/norm_g
+    b_st_s <- b[1:n.st] * norm_st/norm_g + runif(n.st, upper=jv)
     a <- sum(b_st_s)
     b_st_s <- b_st_s/a
-    b_em <- b[(n.st+1):(n.st+n.em)] * norm_em/norm_g
+    b_em <- b[(n.st+1):(n.st+n.em)] * norm_em/norm_g + runif(n.em, upper=jv)
     tauv <- nnfits$tauv[i]
+    if (tauv == 0) tauv=runif(1, upper=jv)
     inits <- list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv)
     
     spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
