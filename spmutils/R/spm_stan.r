@@ -52,7 +52,15 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
       stan_model <- rstan::stan_model(file=file.path(stan_filedir, stan_file))
     }
     
-    spm_opt <- optimizing(stan_model, data=spm_data, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
+    b <- nnfits$nnfits[i,]
+    b_st_s <- b[1:n.st] * norm_st/norm_g
+    a <- sum(b_st_s)
+    b_st_s <- b_st_s/a
+    b_em <- b[(n.st+1):(n.st+n.em)] * norm_em/norm_g
+    tauv <- nnfits$tauv[i]
+    inits <- list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv)
+    
+    spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
     names_pars <- names(spm_opt$par)[1:init_opt$npars]
     
     init_pars <- function(chain_id) {
@@ -103,6 +111,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
       a <- matrix(NA, nrow=nsim, ncol=nr)
       tauv <- matrix(NA, nrow=nsim, ncol=nr)
       in_em <- matrix(NA, nrow=n_em, ncol=nr)
+      ll <- matrix(NA, nrow=nsim, ncol=nr)
       walltime <- rep(NA, nr)
       divergences <- rep(NA, nr)
       max_treedepth <- rep(NA, nr)
@@ -130,6 +139,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
         a[,i] <- post$a
         tauv[,i] <- post$tauv
         in_em[sfit$in.em,i] <- sfit$in.em
+        ll[,i] <- post$ll
         walltime[i] <- max(rowSums(get_elapsed_time(sfit$stanfit)))
         sp <- get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
         divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
@@ -137,12 +147,12 @@ stanfit_batch <- function(gdat, dz, nnfits,
         norm_g[i] <- sfit$norm_g
         norm_st[,i] <- sfit$norm_st
         norm_em[i] <- sfit$norm_em
-        save(b_st, b_em, tauv, a, in_em,
+        save(b_st, b_em, tauv, a, in_em, ll,
                   walltime, divergences, max_treedepth,
                   norm_g, norm_st, norm_em, file = fpart)
         rm(sfit, post, sp)
     }
-    list(b_st=b_st, b_em=b_em, a=a, tauv=tauv, in_em=in_em,
+    list(b_st=b_st, b_em=b_em, a=a, tauv=tauv, in_em=in_em, ll=ll,
                   walltime=walltime, divergences=divergences, max_treedepth=max_treedepth,
                   norm_g=norm_g, norm_st=norm_st, norm_em=norm_em)
 }
@@ -477,6 +487,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
     
     tauv_m <- colMeans(sfits$tauv)
     tauv_std <- apply(sfits$tauv, 2, sd)
+    ll_m <- colMeans(sfits$ll)
     
     mgh_post <- array(NA, dim=c(nsim, nt+1, nf))
     sfh_post <- array(NA, dim=c(nsim, nt, nf))
@@ -658,7 +669,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
     data.frame(plateifu, d4000_n, d4000_n_err,
                lick_hd_a, lick_hd_a_err, mgfe,
                d_kpc, d_re,
-               tauv_m, tauv_std,
+               tauv_m, tauv_std, ll_m=ll_m,
                sigma_mstar_m , sigma_mstar_std , sigma_mstar_lo , sigma_mstar_hi , 
                sigma_sfr_m , sigma_sfr_std , sigma_sfr_lo , sigma_sfr_hi , 
                ssfr_m , ssfr_std , ssfr_lo , ssfr_hi ,     

@@ -53,7 +53,7 @@ mpinv <- function(X) {
 
 ## nnls fits to manga data cube or rss file
 
-nnfitmanga <- function(gdat, dz, lib.ssp, age, Z, gri.ssp, mstar, 
+nnfitmanga <- function(gdat, dz,
                        nz=length(Z), nt=length(age),
                        snrthresh=5, tsf=0.1, rlaw=calzetti, dlogl=1.e-4, 
                        starts = c(0.25, 1., 1.), lb=c(0, 0.7, 0), ub=c(3., 5., 5.),
