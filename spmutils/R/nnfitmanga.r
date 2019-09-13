@@ -54,7 +54,7 @@ mpinv <- function(X) {
 ## nnls fits to manga data cube or rss file
 
 nnfitmanga <- function(gdat, dz,
-                       nz=length(Z), nt=length(age),
+                       nz=length(Z), nt=length(ages),
                        snrthresh=5, tsf=0.1, rlaw=calzetti, dlogl=1.e-4, 
                        starts = c(0.25, 1., 1.), lb=c(0, 0.7, 0), ub=c(3., 5., 5.),
                        flux.em.bad=1.e5,
@@ -105,7 +105,7 @@ nnfitmanga <- function(gdat, dz,
   vdisp.em <- rep(NA, nr)
   vdisp.st <- rep(NA, nr)
   
-  T.gyr <- 10^(age-9)
+  T.gyr <- 10^(ages-9)
   isf <- which.min(abs(tsf-T.gyr))
   lambda.em <- lambda_em
   n.em <- length(lambda.em)

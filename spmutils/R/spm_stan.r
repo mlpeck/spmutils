@@ -416,6 +416,7 @@ get_lineratios <- function(flux_em, tauv, tauv_mult=1, alaw=calzetti) {
   n2halpha <- log10(flux_em[,"nii_6584"]/flux_em[,"h_alpha"])
   s2halpha <- log10((flux_em[,"sii_6717"]+flux_em[,"sii_6730"])/flux_em[,"h_alpha"])
   
+  
   o2 <- (flux_em[,"oii_3727"]+flux_em[,"oii_3729"])*alaw(3728., -tauv*tauv_mult)
   o3 <- (flux_em[,"oiii_4959"]+flux_em[,"oiii_5007"])*alaw(4980., -tauv*tauv_mult)
   hb <- flux_em[,"h_beta"]*alaw(4863., -tauv*tauv_mult)
@@ -423,14 +424,16 @@ get_lineratios <- function(flux_em, tauv, tauv_mult=1, alaw=calzetti) {
   r23 <- log10((o2+o3)/hb)
   o3n2 <- o3hbeta-n2halpha
 
-  ## log(O/H) estimates from Pettini & Pagel 2004 or Tremonti et al. 2004
+  ## log(O/H) estimates from Pettini & Pagel 2004, Tremonti et al. 2004, or Dopita et al. 2016
     
   oh_n2 <- 9.37+2.03*n2halpha+1.26*n2halpha^2+0.32*n2halpha^3
   oh_o3n2 <- 8.73-0.32*o3n2
   oh_r23 <- 9.185-0.313*r23-0.264*r23^2-0.321*r23^3
+  oh_n2s2ha <- 8.77+n2halpha-s2halpha+0.264*n2halpha
   
   data.frame(o3hbeta=o3hbeta, o1halpha=o1halpha, n2halpha=n2halpha, s2halpha=s2halpha,
-             r23=r23, o3n2=o3n2, oh_n2=oh_n2, oh_o3n2=oh_o3n2, oh_r23=oh_r23)
+             r23=r23, o3n2=o3n2, 
+             oh_n2=oh_n2, oh_o3n2=oh_o3n2, oh_r23=oh_r23, oh_n2s2ha=oh_n2s2ha)
 }
 
   
@@ -665,6 +668,11 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
       oh_r23_lo[i] <- quants[1]
       oh_r23_hi[i] <- quants[2]
       
+      oh_n2s2ha_m[i] <- mean(linesi$oh_n2s2ha)
+      oh_n2s2ha_std[i] <- sd(linesi$oh_n2s2ha)
+      quants <- hdiofmcmc(linesi$oh_n2s2ha, credmass=clim)
+      oh_n2s2ha_lo[i] <- quants[1]
+      oh_n2s2ha_hi[i] <- quants[2]
     }
     
     data.frame(plateifu, d4000_n, d4000_n_err,
@@ -692,6 +700,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
                oh_n2_m , oh_n2_std , oh_n2_lo , oh_n2_hi , 
                oh_o3n2_m , oh_o3n2_std , oh_o3n2_lo , oh_o3n2_hi , 
                oh_r23_m , oh_r23_std , oh_r23_lo , oh_r23_hi , 
+               oh_n2s2ha_m , oh_n2s2ha_std , oh_n2s2ha_lo , oh_n2s2ha_hi , 
                bpt=bpt)
 }
 
