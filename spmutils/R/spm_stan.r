@@ -501,7 +501,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
                   "tbar", "tbar_lum", "g_i",
                   "tauv_bd", "sigma_logl_ha", "sigma_logl_ha_ctauv", "sigma_logl_ha_ctauv_bd",
                   "eqw_ha", "o3hbeta", "o1halpha", "n2halpha", "s2halpha",
-                  "r23", "o3n2", "oh_n2", "oh_o3n2", "oh_r23")
+                  "r23", "o3n2", "oh_n2", "oh_o3n2", "oh_r23", "oh_n2s2ha")
     suffixes <- c("m", "std", "lo", "hi")
     
     for (i in seq_along(varnames)) {
