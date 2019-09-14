@@ -91,7 +91,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
 
                         
 stanfit_batch <- function(gdat, dz, nnfits,
-                        stan_file="spm_dust_norm.stan", stan_filedir="~/spmcode/",
+                        stan_file="spm_dust_simpl.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, 
                         init_opt = list(npars=4, is_simpl=c(FALSE, TRUE, FALSE, FALSE), jitter=TRUE, jv=1.e-5),
                         iter=500, warmup=250, chains=4,
@@ -156,6 +156,26 @@ stanfit_batch <- function(gdat, dz, nnfits,
     list(b_st=b_st, b_em=b_em, a=a, tauv=tauv, in_em=in_em, ll=ll,
                   walltime=walltime, divergences=divergences, max_treedepth=max_treedepth,
                   norm_g=norm_g, norm_st=norm_st, norm_em=norm_em)
+}
+
+## replace a single stan run in batch fits
+
+replace_sfit <- function(sfit.all, sfit.one, which.spax) {
+  post <- rstan::extract(sfit.one$stanfit)
+  sp <- rstan::get_sampler_params(sfit.one$stanfit, inc_warmup=FALSE)
+  sfit.all$b_st[,,which.spax] <- post$b_st
+  sfit.all$b_em[,sfit.one$in.em,which.spax] <- post$b_em
+  sfit.all$a[,which.spax] <- post$a
+  sfit.all$tauv[,which.spax] <- post$tauv
+  sfit.all$in_em[sfit.one$in.em,which.spax] <- sfit.one$in.em
+  sfit.all$ll[,which.spax] <- post$ll
+  sfit.all$walltime[which.spax] <- max(rowSums(rstan::get_elapsed_time(sfit.one$stanfit)))
+  sfit.all$divergences[which.spax] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
+  sfit.all$max_treedepth[which.spax] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
+  sfit.all$norm_g[which.spax] <- sfit.one$norm_g
+  sfit.all$norm_st[,which.spax] <- sfit.one$norm_st
+  sfit.all$norm_em[which.spax] <- sfit.one$norm_em
+  sfit.all
 }
 
 ## star formation history, mass growth history, etc.
