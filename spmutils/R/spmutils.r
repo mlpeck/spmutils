@@ -104,6 +104,15 @@ calzetti <- function(lambda, tauv) {
   exp(-k*tauv)
 }
 
+## modified calzetti relation from Salim et al. 2018
+
+calzetti_mod <- function(lambda, tauv, delta=0) {
+  ls <- 5500./lambda
+  kl <- -0.101771 + 0.549882 * ls + 1.393039 * ls^2 - 1.098615 * ls^3 + 0.260618 * ls^4
+  kl <- kl * ls^delta
+  exp(-tauv * kl)
+}
+
 ## galactic extinction law of Cardelli, Clayton, & Mathis 1989, ApJ 345, 245
 
 ccm <- function(lambda, tauv, rv=3.1) {
@@ -128,8 +137,8 @@ ccm <- function(lambda, tauv, rv=3.1) {
 }
 
 
-simplescreen <- function(lambda, tauv) {
-    exp(-tauv*(lambda/5500)^(-0.7))
+simplescreen <- function(lambda, tauv, delta = 0.) {
+    exp(-tauv*(5500./lambda)^(0.7 + delta))
 }
 
 

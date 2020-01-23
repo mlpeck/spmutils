@@ -1,9 +1,12 @@
-stanfit_one <- function(gdat, dz, nnfits, which.spax, 
+stanfit_one <- function(gdat, dz, nnfits, which.spax,
+                        prep_data,
+                        init_opt,
+                        init_sampler,
                         stan_model=NULL,
-                        stan_file="spm_dust_simpl.stan", stan_filedir="~/spmcode/",
+                        stan_file="spm_dust_mod_simpl.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, 
-                        init_opt = list(npars=4, is_simpl=c(FALSE, TRUE, FALSE, FALSE), jitter=TRUE, jv=1.e-5),
-                        iter=500, warmup=250, thin=1, chains=4, 
+                        jv=1.e-5,
+                        iter=750, warmup=250, thin=1, chains=4, 
                         OP=FALSE, ...) {
     
     require(rstan)
@@ -16,69 +19,16 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     nsim <- (iter-warmup)*chains
     T.gyr <- 10^(ages-9)
     dT <- diff(c(0, T.gyr))
-        
-    lib.ssp$lambda <- airtovac(lib.ssp$lambda)
-    lib.st <- regrid(lambda.rest, lib.ssp)
-    x.st <- blur.lib(lib.st, nnfits$vdisp.st[i])
-    n.st <- ncol(x.st)
-    nz <- length(Z)
-    nt <- n.st/nz
-    ind.young <- (0:(nz-1))*nt+1
-    allok <- complete.cases(flux, ivar, x.st)
-    nl <- length(which(allok))
-    norm_g <- mean(flux[allok])
-    norm_st <- colMeans(x.st[allok,])
-    x.st <- scale(x.st[allok,], center=FALSE, scale=norm_st)
-    
-    x.em <- make_emlib(emlines, nnfits$vdisp.em[i], logl, allok)
-    in.em <- x.em$in_em
-    x.em <- x.em$x_em
-    n.em <- ncol(x.em)
-    norm_em <- 1
-    
-    spm_data <- list(nt=nt, nz=nz, nl=nl, n_em=n.em,
-                     ind_young=ind.young,
-                     lambda=lambda.rest[allok],
-                     gflux=flux[allok]/norm_g,
-                     g_std=1/sqrt(ivar[allok])/norm_g,
-                     norm_g=norm_g,
-                     norm_st=norm_st,
-                     norm_em=norm_em,
-                     sp_st=x.st,
-                     dT=rep(dT, nz),
-                     sp_em=x.em[allok,])
     
     if (is.null(stan_model)) {
       stan_model <- rstan::stan_model(file=file.path(stan_filedir, stan_file))
     }
     
-    b <- nnfits$nnfits[i,]
-    b_st_s <- b[1:n.st] * norm_st/norm_g + runif(n.st, min=init_opt$jv/10, max=init_opt$jv)
-    a <- sum(b_st_s)
-    b_st_s <- b_st_s/a
-    b_em <- b[(n.st+1):(n.st+n.em)] * norm_em/norm_g + runif(n.em, min=init_opt$jv/10, max=init_opt$jv)
-    tauv <- nnfits$tauv[i]
-    if (tauv == 0) tauv=runif(1, min=init_opt$jv/10, max=init_opt$jv)
-    inits <- list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv)
-    
+    spm_data <- prep_data(nnfits, which.spax)
+    inits <- init_opt(nnfits, which.spax, jv)
     spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
-    names_pars <- names(spm_opt$par)[1:init_opt$npars]
     
-    init_pars <- function(chain_id) {
-      retval <- list()
-      for (i in 1:init_opt$npars) {
-        assign(names_pars[i], spm_opt$par[[names_pars[i]]])
-        if (init_opt$jitter) {
-          assign(names_pars[i], get(names_pars[i]) +
-                  runif(length(get(names_pars[i])), max= init_opt$jv))
-        }
-        if (init_opt$is_simpl[i]) {
-          assign(names_pars[i], get(names_pars[i])/sum(get(names_pars[i])))
-        }
-        retval[[names_pars[i]]] <- get(names_pars[i])
-      }
-      retval
-    }
+    init_pars <- lapply(X=1:chains, init_sampler, stan_opt=spm_opt, jv=jv)
     
     stanfit <- sampling(stan_model, data=spm_data,
                      chains=chains, iter=iter, warmup=warmup, thin=thin,
@@ -91,10 +41,16 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
 
                         
 stanfit_batch <- function(gdat, dz, nnfits,
+                        init_tracked,
+                        update_tracked,
+                        return_tracked,
+                        prep_data,
+                        init_opt,
+                        init_sampler,
                         stan_file="spm_dust_simpl.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, 
-                        init_opt = list(npars=4, is_simpl=c(FALSE, TRUE, FALSE, FALSE), jitter=TRUE, jv=1.e-5),
-                        iter=500, warmup=250, chains=4,
+                        jv=1.e-5,
+                        iter=750, warmup=250, chains=4,
                         OP=FALSE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
     dims <- dim(gdat$flux)
@@ -107,18 +63,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
     nl <- length(gdat$lambda)
     smodel <- rstan::stan_model(file.path(stan_filedir, stan_file))
     if (is.null(start) || !file.exists(fpart)) {
-      b_st <- array(NA, dim=c(nsim, n_st, nr))
-      b_em <- array(NA, dim=c(nsim, n_em, nr))
-      a <- matrix(NA, nrow=nsim, ncol=nr)
-      tauv <- matrix(NA, nrow=nsim, ncol=nr)
-      in_em <- matrix(NA, nrow=n_em, ncol=nr)
-      ll <- matrix(NA, nrow=nsim, ncol=nr)
-      walltime <- rep(NA, nr)
-      divergences <- rep(NA, nr)
-      max_treedepth <- rep(NA, nr)
-      norm_g <- rep(NA, nr)
-      norm_st <- matrix(NA, nrow=n_st, ncol=nr)
-      norm_em <- rep(NA, nr)
+      init_tracked()
       start <- 1
     } else {
         load(fpart)
@@ -129,53 +74,18 @@ stanfit_batch <- function(gdat, dz, nnfits,
     for (i in start:end) {
         if (is.na(dz[i]) || is.na(nnfits$Mstar[i])) next
         sfit <- stanfit_one(gdat, dz, nnfits, which.spax=i,
+                            prep_data,
+                            init_opt,
+                            init_sampler,
                             stan_model=smodel,
-                            iter_opt=iter_opt, init_opt=init_opt,
+                            iter_opt=iter_opt, jv=jv,
                             iter = iter, warmup = warmup, chains = chains, 
                             OP=OP, ...)
         plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
-        post <- extract(sfit$stanfit)
-        b_st[,,i] <- post$b_st
-        b_em[,sfit$in.em,i] <- post$b_em
-        a[,i] <- post$a
-        tauv[,i] <- post$tauv
-        in_em[sfit$in.em,i] <- sfit$in.em
-        ll[,i] <- post$ll
-        walltime[i] <- max(rowSums(get_elapsed_time(sfit$stanfit)))
-        sp <- get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
-        divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
-        max_treedepth[i] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
-        norm_g[i] <- sfit$norm_g
-        norm_st[,i] <- sfit$norm_st
-        norm_em[i] <- sfit$norm_em
-        save(b_st, b_em, tauv, a, in_em, ll,
-                  walltime, divergences, max_treedepth,
-                  norm_g, norm_st, norm_em, file = fpart)
-        rm(sfit, post, sp)
+        update_tracked()
+        rm(sfit)
     }
-    list(b_st=b_st, b_em=b_em, a=a, tauv=tauv, in_em=in_em, ll=ll,
-                  walltime=walltime, divergences=divergences, max_treedepth=max_treedepth,
-                  norm_g=norm_g, norm_st=norm_st, norm_em=norm_em)
-}
-
-## replace a single stan run in batch fits
-
-replace_sfit <- function(sfit.all, sfit.one, which.spax) {
-  post <- rstan::extract(sfit.one$stanfit)
-  sp <- rstan::get_sampler_params(sfit.one$stanfit, inc_warmup=FALSE)
-  sfit.all$b_st[,,which.spax] <- post$b_st
-  sfit.all$b_em[,sfit.one$in.em,which.spax] <- post$b_em
-  sfit.all$a[,which.spax] <- post$a
-  sfit.all$tauv[,which.spax] <- post$tauv
-  sfit.all$in_em[sfit.one$in.em,which.spax] <- sfit.one$in.em
-  sfit.all$ll[,which.spax] <- post$ll
-  sfit.all$walltime[which.spax] <- max(rowSums(rstan::get_elapsed_time(sfit.one$stanfit)))
-  sfit.all$divergences[which.spax] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
-  sfit.all$max_treedepth[which.spax] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
-  sfit.all$norm_g[which.spax] <- sfit.one$norm_g
-  sfit.all$norm_st[,which.spax] <- sfit.one$norm_st
-  sfit.all$norm_em[which.spax] <- sfit.one$norm_em
-  sfit.all
+    return_tracked()
 }
 
 ## star formation history, mass growth history, etc.
@@ -279,7 +189,7 @@ get_proxies <- function(...) {
     b_st <- post$b_st
     norm_st <- ins$norm_st
     if (exists("a", post)) {
-      b_st <- b_st*post$a*ins$norm_g
+      b_st <- b_st*ins$norm_g
       norm_st <- 1/norm_st
     }
   } else {
@@ -331,7 +241,6 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
   ew_em <- matrix(NA, nsim, ne)
   
   flux_em <- t(t(b_em)*em.mult)*norm_em
-  flux_em[flux_em < 0] <- 0
   sigma_logl_em <- cosmo::loglum.ergs(flux_em, z) - binarea
   
   mu_st <- tcrossprod(b_st, as.matrix(lib.ssp[, -1]))
@@ -430,16 +339,16 @@ batch_bptclass <- function(flux_em, snthresh=3) {
 
 ## emission line ratios and various "strong line" metallicity calibrations
   
-get_lineratios <- function(flux_em, tauv, tauv_mult=1, alaw=calzetti) {
+get_lineratios <- function(flux_em, tauv, delta=0, tauv_mult=1, alaw=calzetti_mod) {
   o3hbeta <- log10(flux_em[,"oiii_5007"]/flux_em[,"h_beta"])
   o1halpha <- log10(flux_em[,"oi_6300"]/flux_em[,"h_alpha"])
   n2halpha <- log10(flux_em[,"nii_6584"]/flux_em[,"h_alpha"])
   s2halpha <- log10((flux_em[,"sii_6717"]+flux_em[,"sii_6730"])/flux_em[,"h_alpha"])
   
   
-  o2 <- (flux_em[,"oii_3727"]+flux_em[,"oii_3729"])*alaw(3728., -tauv*tauv_mult)
-  o3 <- (flux_em[,"oiii_4959"]+flux_em[,"oiii_5007"])*alaw(4980., -tauv*tauv_mult)
-  hb <- flux_em[,"h_beta"]*alaw(4863., -tauv*tauv_mult)
+  o2 <- (flux_em[,"oii_3727"]+flux_em[,"oii_3729"])*alaw(3728., -tauv*tauv_mult, delta)
+  o3 <- (flux_em[,"oiii_4959"]+flux_em[,"oiii_5007"])*alaw(4980., -tauv*tauv_mult, delta)
+  hb <- flux_em[,"h_beta"]*alaw(4863., -tauv*tauv_mult, delta)
   
   r23 <- log10((o2+o3)/hb)
   o3n2 <- o3hbeta-n2halpha
@@ -457,18 +366,18 @@ get_lineratios <- function(flux_em, tauv, tauv_mult=1, alaw=calzetti) {
 }
 
   
-sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.86, clim=0.95) {
+sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti_mod, intr_bd=2.86, clim=0.95) {
     
-    tauv.bd <- function(flux_em, intr_bd, alaw) {
+    tauv.bd <- function(flux_em, intr_bd, delta=0, alaw) {
       bd <- flux_em[,'h_alpha']/flux_em[,'h_beta']
       bd[!is.finite(bd)] <- NA
-      tauv <- log(bd/intr_bd)/(log(alaw(6562.8,1))-log(alaw(4861.3,1)))
+      tauv <- log(bd/intr_bd)/(log(alaw(6562.8,1, delta))-log(alaw(4861.3,1, delta)))
       tauv[tauv<0] <- 0
       tauv
     }
     
-    logl.ha.cor <- function(logl.halpha, tauv, alaw) {
-      att <- alaw(lambda=6562.8, tauv)
+    logl.ha.cor <- function(logl.halpha, tauv, delta=0, alaw) {
+      att <- alaw(lambda=6562.8, tauv, delta)
       logl.halpha - log10(att)
     }
     
@@ -511,7 +420,20 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
     
     tauv_m <- colMeans(sfits$tauv)
     tauv_std <- apply(sfits$tauv, 2, sd)
-    ll_m <- colMeans(sfits$ll)
+    
+    if (exists("delta", sfits) {
+      delta <- sfits$delta
+    } else {
+      delta <- matrix(0, nsim, nf)
+    }
+    delta_m <- colMeans(delta)
+    delta_std <- apply(delta, 2, sd)
+    
+    if (exists("ll", sfits)) {
+      ll_m <- colMeans(sfits$ll)
+    } else {
+      ll_m <- rep(NA, nf)
+    }
     
     mgh_post <- array(NA, dim=c(nsim, nt+1, nf))
     sfh_post <- array(NA, dim=c(nsim, nt, nf))
@@ -587,9 +509,9 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
       g_i_lo[i] <- quants[1]
       g_i_hi[i] <- quants[2]
       
-      linesi <- get_lineratios(em_all$flux_em[,,i], sfits$tauv[,i], alaw=alaw)
+      linesi <- get_lineratios(em_all$flux_em[,,i], sfits$tauv[,i], delta[,i], alaw=alaw)
       
-      tauv_bd <- tauv.bd(em_all$flux_em[,,i], intr_bd=intr_bd, alaw=alaw)
+      tauv_bd <- tauv.bd(em_all$flux_em[,,i], intr_bd=intr_bd, delta[,i], alaw=alaw)
       
       tauv_bd_m[i] <- mean(tauv_bd)
       tauv_bd_std[i] <- sd(tauv_bd)
@@ -607,7 +529,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
       
       ## correct from stan fit estimate of tauv
       
-      logl_ha_c <- logl.ha.cor(em_all$sigma_logl_em[, "h_alpha", i], sfits$tauv[,i], alaw=alaw)
+      logl_ha_c <- logl.ha.cor(em_all$sigma_logl_em[, "h_alpha", i], sfits$tauv[,i], delta[,i], alaw=alaw)
       
       sigma_logl_ha_ctauv_m[i] <- mean(logl_ha_c)
       sigma_logl_ha_ctauv_std[i] <- sd(logl_ha_c)
@@ -618,7 +540,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
       
       ## correct from balmer decrement
       
-      logl_ha_c <- logl.ha.cor(em_all$sigma_logl_em[, "h_alpha", i], tauv_bd, alaw=alaw)
+      logl_ha_c <- logl.ha.cor(em_all$sigma_logl_em[, "h_alpha", i], tauv_bd, delta[,i], alaw=alaw)
       
       sigma_logl_ha_ctauv_bd_m[i] <- mean(logl_ha_c)
       sigma_logl_ha_ctauv_bd_std[i] <- sd(logl_ha_c)
@@ -698,7 +620,8 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti, intr_bd=2.
     data.frame(plateifu, d4000_n, d4000_n_err,
                lick_hd_a, lick_hd_a_err, mgfe,
                d_kpc, d_re,
-               tauv_m, tauv_std, ll_m=ll_m,
+               tauv_m, tauv_std, 
+               delta_m, delta_std, ll_m=ll_m,
                sigma_mstar_m , sigma_mstar_std , sigma_mstar_lo , sigma_mstar_hi , 
                sigma_sfr_m , sigma_sfr_std , sigma_sfr_lo , sigma_sfr_hi , 
                ssfr_m , ssfr_std , ssfr_lo , ssfr_hi ,     
