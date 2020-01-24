@@ -1,64 +1,79 @@
 ## stan model specific utilities to wrangle data and provide initial values to Stan
 
-prep_data_mod <- function(nnfits, which.spax) {
-    lib.ssp$lambda <- airtovac(lib.ssp$lambda)
-    lib.st <- regrid(lambda.rest, lib.ssp)
-    x.st <- blur.lib(lib.st, nnfits$vdisp.st[which.spax])
-    n.st <- ncol(x.st)
-    nz <- length(Z)
-    nt <- n.st/nz
-    ind.young <- (0:(nz-1))*nt+1
-    allok <- complete.cases(flux, ivar, x.st)
-    nl <- length(which(allok))
-    norm_g <- mean(flux[allok])
-    norm_st <- colMeans(x.st[allok,])
-    x.st <- scale(x.st[allok,], center=FALSE, scale=norm_st)
-    
-    x.em <- make_emlib(emlines, nnfits$vdisp.em[which.spax], logl, allok)
-    in.em <- x.em$in_em
-    x.em <- x.em$x_em
-    n.em <- ncol(x.em)
-    norm_em <- 1
-    
-    list(nt=nt, nz=nz, nl=nl, n_em=n.em,
-         ind_young=ind.young,
-         lambda=lambda.rest[allok],
-         gflux=flux[allok]/norm_g,
-         g_std=1/sqrt(ivar[allok])/norm_g,
-         norm_g=norm_g,
-         norm_st=norm_st,
-         norm_em=norm_em,
-         sp_st=x.st,
-         dT=rep(dT, nz),
-         sp_em=x.em[allok,])
+prep_data_mod <- function(gdat, dz, nnfits, which.spax) {
+  i <- which.spax
+  z <- gdat$meta$z+dz[i]
+  flux <- gdat$flux[i, ]
+  ivar <- gdat$ivar[i, ]
+  lambda.rest <- gdat$lambda/(1+z)
+  logl <- log10(lambda.rest)
+  T.gyr <- 10^(ages-9)
+  dT <- diff(c(0, T.gyr))
+  
+  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
+  lib.st <- regrid(lambda.rest, lib.ssp)
+  x.st <- blur.lib(lib.st, nnfits$vdisp.st[i])
+  n.st <- ncol(x.st)
+  nz <- length(Z)
+  nt <- n.st/nz
+  ind.young <- (0:(nz-1))*nt+1
+  allok <- complete.cases(flux, ivar, x.st)
+  nl <- length(which(allok))
+  norm_g <- mean(pmax(flux[allok], 0))
+  norm_st <- colMeans(x.st[allok,])
+  x.st <- scale(x.st[allok,], center=FALSE, scale=norm_st)
+  
+  x.em <- make_emlib(emlines, nnfits$vdisp.em[i], logl, allok)
+  in.em <- x.em$in_em
+  x.em <- x.em$x_em
+  n.em <- ncol(x.em)
+  norm_em <- 1
+  
+  list(nt=nt, nz=nz, nl=nl, n_em=n.em,
+       ind_young=ind.young,
+       lambda=lambda.rest[allok],
+       gflux=flux[allok]/norm_g,
+       g_std=1/sqrt(ivar[allok])/norm_g,
+       norm_g=norm_g,
+       norm_st=norm_st,
+       norm_em=norm_em,
+       sp_st=x.st,
+       dT=rep(dT, nz),
+       sp_em=x.em[allok,],
+       in_em=in.em
+      )
 }
 
-init_opt_mod <- function(nnfits, which.spax, jv) {
-    b <- nnfits$nnfits[which.spax,]
-    b_st_s <- b[1:n.st] * norm_st/norm_g + runif(n.st, min=jv/10, max=jv)
-    a <- sum(b_st_s)
-    b_st_s <- b_st_s/a
-    b_em <- b[(n.st+1):(n.st+n.em)] * norm_em/norm_g + runif(n.em, min=jv/10, max=jv)
-    tauv <- nnfits$tauv[which.spax]
-    if (tauv == 0) tauv=runif(1, min=jv/10, max=jv)
-    delta <- rnorm(1, 0, jv)
-    inits <- list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv, delta=delta)
-  
+init_opt_mod <- function(spm_data, nnfits, which.spax, jv) {
+  n_st <- ncol(spm_data$sp_st)
+  n_em <- spm_data$n_em
+  norm_st <- spm_data$norm_st
+  norm_em <- spm_data$norm_em
+  norm_g <- spm_data$norm_g
+  b <- nnfits$nnfits[which.spax,]
+  b_st_s <- b[1:n_st] * norm_st/norm_g + runif(n_st, min=jv/10, max=jv)
+  a <- sum(b_st_s)
+  b_st_s <- b_st_s/a
+  b_em <- b[(n_st+1):(n_st+n_em)] * norm_em/norm_g + runif(n_em, min=jv/10, max=jv)
+  tauv <- nnfits$tauv[which.spax]
+  if (tauv == 0) tauv=runif(1, min=jv/10, max=jv)
+  delta <- rnorm(1, 0, jv)
+  list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv, delta=delta)
 }
 
 init_sampler_mod <- function(X, stan_opt, jv) {
-  a <- stan_opt$a + rnorm(1, sd=jv)
+  a <- as.numeric(stan_opt$a + rnorm(1, sd=jv))
   b_st_s <- stan_opt$b_st_s + runif(length(stan_opt$b_st_s), min=jv/10, max=jv)
   b_st_s <- b_st_s/sum(b_st_s)
   b_em <- stan_opt$b_em + runif(length(stan_opt$b_em), min=jv/10, max=jv)
-  tauv <- stan_opt$tauv + runif(1, min=jv/10, max=jv)
-  delta <- stan_opt$delat + rnorm(1, sd=jv)
+  tauv <- as.numeric(stan_opt$tauv + runif(1, min=jv/10, max=jv))
+  delta <- as.numeric(stan_opt$delta + rnorm(1, sd=jv))
   list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv, delta=delta)
 }
 
 ## Stan model specific data to track in stanfit_batch
 
-init_tracked_mod <- function() {
+init_tracked_mod <- function(nsim, n_st, n_em, nr) {
   assign("b_st", array(NA, dim=c(nsim, n_st, nr)), parent.frame())
   assign("b_em", array(NA, dim=c(nsim, n_em, nr)), parent.frame())
   assign("a", matrix(NA, nrow=nsim, ncol=nr), parent.frame())
@@ -74,31 +89,34 @@ init_tracked_mod <- function() {
   assign("norm_em", rep(NA, nr), parent.frame())
 }
 
-update_tracked_mod <- function() {
+update_tracked_mod <- function(i, sfit, fpart) {
   post <- extract(sfit$stanfit)
-  b_st[,,i] <<- post$b_st
-  b_em[,sfit$in.em,i] <<- post$b_em
-  a[,i] <<- post$a
-  tauv[,i] <<- post$tauv
-  delta[,i] <<- post$delta
-  in_em[sfit$in.em,i] <<- sfit$in.em
-  ll[,i] <<- post$ll
-  walltime[i] <<- max(rowSums(get_elapsed_time(sfit$stanfit)))
-  sp <<- get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
-  divergences[i] <<- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
-  max_treedepth[i] <<- max(sapply(sp, function(x) max(x[, "treedepth__"])))
-  norm_g[i] <<- sfit$norm_g
-  norm_st[,i] <<- sfit$norm_st
-  norm_em[i] <<- sfit$norm_em
-  save(b_st, b_em, tauv, a, in_em, ll,
+  env <- parent.frame()
+  env$b_st[,,i] <- post$b_st
+  env$b_em[,sfit$in_em,i] <- post$b_em
+  env$a[,i] <- post$a
+  env$tauv[,i] <- post$tauv
+  env$delta[,i] <- post$delta
+  env$in_em[sfit$in_em,i] <- sfit$in_em
+  env$ll[,i] <- post$ll
+  env$walltime[i] <- max(rowSums(get_elapsed_time(sfit$stanfit)))
+  sp <- get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
+  env$divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
+  env$max_treedepth[i] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
+  env$norm_g[i] <- sfit$norm_g
+  env$norm_st[,i] <- sfit$norm_st
+  env$norm_em[i] <- sfit$norm_em
+  save(b_st, b_em, tauv, delta, a, in_em, ll,
        walltime, divergences, max_treedepth,
-       norm_g, norm_st, norm_em, file = fpart)
+       norm_g, norm_st, norm_em, envir=env, file = fpart)
 }
 
 return_tracked_mod <- function() {
-  list(b_st=b_st, b_em=b_em, a=a, tauv=tauv, delta=delta, in_em=in_em, ll=ll,
-       walltime=walltime, divergences=divergences, max_treedepth=max_treedepth,
-       norm_g=norm_g, norm_st=norm_st, norm_em=norm_em)
+  env <- parent.frame()
+  retval <- list(b_st= env$b_st, b_em= env$b_em, a= env$a, tauv= env$tauv, delta= env$delta, in_em= env$in_em, ll= env$ll,
+       walltime= env$walltime, divergences= env$divergences, max_treedepth= env$max_treedepth,
+       norm_g= env$norm_g, norm_st= env$norm_st, norm_em= env$norm_em)
+  retval
 }
 
 ## replace a single stan run in batch fits

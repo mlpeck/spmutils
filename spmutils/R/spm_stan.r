@@ -10,32 +10,23 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         OP=FALSE, ...) {
     
     require(rstan)
-    i <- which.spax
-    z <- gdat$meta$z+dz[i]
-    flux <- gdat$flux[i, ]
-    ivar <- gdat$ivar[i, ]
-    lambda.rest <- gdat$lambda/(1+z)
-    logl <- log10(lambda.rest)
-    nsim <- (iter-warmup)*chains
-    T.gyr <- 10^(ages-9)
-    dT <- diff(c(0, T.gyr))
-    
     if (is.null(stan_model)) {
       stan_model <- rstan::stan_model(file=file.path(stan_filedir, stan_file))
     }
     
-    spm_data <- prep_data(nnfits, which.spax)
-    inits <- init_opt(nnfits, which.spax, jv)
+    spm_data <- prep_data(gdat, dz, nnfits, which.spax)
+    inits <- init_opt(spm_data, nnfits, which.spax, jv)
     spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
     
-    init_pars <- lapply(X=1:chains, init_sampler, stan_opt=spm_opt, jv=jv)
+    init_pars <- lapply(X=1:chains, init_sampler, stan_opt=spm_opt$par, jv=jv)
     
     stanfit <- sampling(stan_model, data=spm_data,
                      chains=chains, iter=iter, warmup=warmup, thin=thin,
                      cores=min(chains, getOption("mc.cores")),
                      init=init_pars, open_progress=OP, ...)
     
-    list(spm_data=spm_data, stanfit=stanfit, norm_g=norm_g, norm_st=norm_st, norm_em=norm_em, in.em=in.em)
+    list(spm_data=spm_data, stanfit=stanfit, 
+         norm_g=spm_data$norm_g, norm_st=spm_data$norm_st, norm_em=spm_data$norm_em, in_em=spm_data$in_em)
 }
 
 
@@ -63,7 +54,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
     nl <- length(gdat$lambda)
     smodel <- rstan::stan_model(file.path(stan_filedir, stan_file))
     if (is.null(start) || !file.exists(fpart)) {
-      init_tracked()
+      init_tracked(nsim, n_st, n_em, nr)
       start <- 1
     } else {
         load(fpart)
@@ -82,7 +73,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
                             iter = iter, warmup = warmup, chains = chains, 
                             OP=OP, ...)
         plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
-        update_tracked()
+        update_tracked(i, sfit, fpart)
         rm(sfit)
     }
     return_tracked()
@@ -421,7 +412,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti_mod, intr_b
     tauv_m <- colMeans(sfits$tauv)
     tauv_std <- apply(sfits$tauv, 2, sd)
     
-    if (exists("delta", sfits) {
+    if (exists("delta", sfits)) {
       delta <- sfits$delta
     } else {
       delta <- matrix(0, nsim, nf)
