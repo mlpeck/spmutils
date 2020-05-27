@@ -1,6 +1,8 @@
 ## stan model specific utilities to wrangle data and provide initial values to Stan
 
-prep_data_mod <- function(gdat, dz, nnfits, which.spax) {
+## normalize galaxy and stellar library fluxes by mean over all good data points
+
+prep_data_avg <- function(gdat, dz, nnfits, which.spax) {
   i <- which.spax
   z <- gdat$meta$z+dz[i]
   flux <- gdat$flux[i, ]
@@ -44,6 +46,47 @@ prep_data_mod <- function(gdat, dz, nnfits, which.spax) {
       )
 }
 
+## normalize by mean over wavelength interval (5375, 5625)
+
+prep_data_mod <- function (gdat, dz, nnfits, which.spax) {
+  i <- which.spax
+  z <- gdat$meta$z + dz[i]
+  flux <- gdat$flux[i, ]
+  ivar <- gdat$ivar[i, ]
+  lambda.rest <- gdat$lambda/(1 + z)
+  logl <- log10(lambda.rest)
+  T.gyr <- 10^(ages - 9)
+  dT <- diff(c(0, T.gyr))
+  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
+  lib.st <- regrid(lambda.rest, lib.ssp)
+  x.st <- blur.lib(lib.st, nnfits$vdisp.st[i])
+  n.st <- ncol(x.st)
+  nz <- length(Z)
+  nt <- n.st/nz
+  ind.young <- (0:(nz - 1)) * nt + 1
+  allok <- complete.cases(flux, ivar, x.st)
+  lambda <- lambda.rest[allok]
+  gflux <- flux[allok]
+  x.st <- x.st[allok,]
+  wl_ind <- findInterval(c(5375,5625), lambda)
+  nl <- length(which(allok))
+  norm_g <- mean(pmax(gflux[wl_ind[1]:wl_ind[2]], 0))
+  norm_st <- colMeans(x.st[wl_ind[1]:wl_ind[2], ])
+  x.st <- scale(x.st, center = FALSE, scale = norm_st)
+  x.em <- make_emlib(emlines, nnfits$vdisp.em[i], logl, allok)
+  in.em <- x.em$in_em
+  x.em <- x.em$x_em
+  n.em <- ncol(x.em)
+  norm_em <- 1
+  list(nt = nt, nz = nz, nl = nl, n_em = n.em, ind_young = ind.young, 
+    lambda = lambda, gflux = gflux/norm_g, 
+    g_std = 1/sqrt(ivar[allok])/norm_g, norm_g = norm_g, 
+    norm_st = norm_st, norm_em = norm_em, sp_st = x.st, 
+    dT = rep(dT, nz), sp_em = x.em[allok, ], in_em = in.em)
+}
+
+## initialize Stan's optimizer to estimate MAP solution
+
 init_opt_mod <- function(spm_data, nnfits, which.spax, jv) {
   n_st <- ncol(spm_data$sp_st)
   n_em <- spm_data$n_em
@@ -60,6 +103,8 @@ init_opt_mod <- function(spm_data, nnfits, which.spax, jv) {
   delta <- rnorm(1, 0, jv)
   list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv, delta=delta)
 }
+
+## initialize Stan's sampler
 
 init_sampler_mod <- function(X, stan_opt, jv) {
   a <- as.numeric(stan_opt$a + rnorm(1, sd=jv))
