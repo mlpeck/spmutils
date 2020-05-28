@@ -135,7 +135,7 @@ init_tracked_mod <- function(nsim, n_st, n_em, nr) {
 }
 
 update_tracked_mod <- function(i, sfit, fpart) {
-  post <- extract(sfit$stanfit)
+  post <- rstan::extract(sfit$stanfit)
   env <- parent.frame()
   env$b_st[,,i] <- post$b_st
   env$b_em[,sfit$in_em,i] <- post$b_em
@@ -144,8 +144,8 @@ update_tracked_mod <- function(i, sfit, fpart) {
   env$delta[,i] <- post$delta
   env$in_em[sfit$in_em,i] <- sfit$in_em
   env$ll[,i] <- post$ll
-  env$walltime[i] <- max(rowSums(get_elapsed_time(sfit$stanfit)))
-  sp <- get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
+  env$walltime[i] <- max(rowSums(rstan::get_elapsed_time(sfit$stanfit)))
+  sp <- rstan::get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
   env$divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
   env$max_treedepth[i] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
   env$norm_g[i] <- sfit$norm_g
