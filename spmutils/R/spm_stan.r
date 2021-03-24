@@ -5,8 +5,8 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         stan_model=NULL,
                         stan_file="spm_dust_mod_simpl.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, 
-                        jv=1.e-5,
-                        iter=750, warmup=250, thin=1, chains=4, 
+                        jv=1.e-4,
+                        iter=1000, warmup=250, thin=1, chains=4, 
                         OP=FALSE, ...) {
     
     require(rstan)
@@ -40,8 +40,8 @@ stanfit_batch <- function(gdat, dz, nnfits,
                         init_sampler = init_sampler_mod,
                         stan_file="spm_dust_mod_simpl.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, 
-                        jv=1.e-5,
-                        iter=750, warmup=250, chains=4,
+                        jv=1.e-4,
+                        iter=1000, warmup=250, chains=4,
                         OP=FALSE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
     dims <- dim(gdat$flux)

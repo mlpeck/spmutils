@@ -37,7 +37,7 @@ parameters {
     simplex[nt*nz] b_st_s;
     vector<lower=0>[n_em] b_em;
     real<lower=0> tauv;
-    real delta;
+    real<lower= -1.> delta;
 }
 model {
     b_em ~ normal(0, 100.);

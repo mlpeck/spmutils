@@ -1,7 +1,6 @@
-nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar, 
-                      dname="spectra",
+nnfitsdss <- function(files, dname="spectra",
                       lambda.em = lambda_em,
-                      nz=length(Z), nt=length(age),
+                      nz=length(Z), nt=length(ages),
                       snrthresh=5, tsf=0.1, rlaw=calzetti, dlogl=1.e-4, 
                       starts = c(0.25, 1., 1.), lb=c(0, 0.7, 0), ub=c(3., 5., 5.),
                       flux.em.bad=1.e5,
@@ -51,7 +50,7 @@ nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar,
   vdisp.em <- rep(NA, nr)
   vdisp.st <- rep(NA, nr)
   
-  T.gyr <- 10^(age-9)
+  T.gyr <- 10^(ages-9)
   isf <- which.min(abs(tsf-T.gyr))
   n.em <- length(lambda.em)
   ##needed to correct for log lambda grid
@@ -59,7 +58,7 @@ nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar,
   n.st <- ncol(lib.ssp)-1
   
   nnfits <- matrix(NA, nr, n.em+n.st)
-  xi2 <- rep(NA, nr)
+  log_lik <- rep(NA, nr)
   tbar <- rep(NA, nr)
   tbar.lum <- rep(NA, nr)
   zbar <- rep(NA, nr)
@@ -101,7 +100,7 @@ nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar,
     residual <- (flux-fitted)*sqrt(ivar)
     
     ## basic measures of goodness of fit            
-    xi2[i] <- fit.nn$deviance/(nl-fit.nn$nsetp-1)
+    log_lik[i] <- fit.nn$deviance/2
     
     ## plot spectrum and fit
     tdat <- data.frame(lambda=lambda.rest, gflux=flux, fitted=fitted,
@@ -113,8 +112,8 @@ nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar,
     tlong$variable[tlong$variable=="gflux"] <- "fitted"
     base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
                   ylab="", col=val, 
-                  main=paste("(",i,") xi2= ", 
-                             format(xi2[i], digits=3), sep=""))
+                  main=paste("(",i,") log_lik= ", 
+                             format(log_lik[i], digits=3), sep=""))
     add.resid <- facet_grid(variable ~ ., scale="free_y")
     plot(base+add.resid)
     
@@ -122,7 +121,7 @@ nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar,
     flux.em[i,in.em] <- b.em*em.mult[in.em]
     nzeros <- sort(fit.nn$passive)
     X <- cbind(x.st*as.vector(rlaw(lambda.rest,tauv[i])), x.em)[allok,nzeros]
-    V <- max(xi2[i], 1)*zernike::mpinv(crossprod(X, diag(ivar[allok])) %*% X)
+    V <- max(log_lik[i]*2/nl, 1)*mpinv(crossprod(X, diag(ivar[allok])) %*% X)
     sd.b <- rep(NA, n.st+ni.em)
     sd.b[nzeros] <- sqrt(diag(V))
     flux.em.err[i,in.em] <- sd.b[(n.st+1):(n.st+ni.em)]*em.mult[in.em]
@@ -160,7 +159,7 @@ nnfitsdss <- function(files, lib.ssp, age, Z, gri.ssp, mstar,
                   lick=lick, lick.err=lick.err, 
                   flux.em=flux.em, flux.em.err=flux.em.err, gri=gri, 
                   tbar=tbar, tbar.lum=tbar.lum, Mstar=Mstar,
-                  xi2=xi2, nnfits=nnfits)
+                  log_lik=log_lik, nnfits=nnfits)
   returns
 }
                       

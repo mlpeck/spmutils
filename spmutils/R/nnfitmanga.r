@@ -114,7 +114,7 @@ nnfitmanga <- function(gdat, dz,
   n.st <- ncol(lib.ssp)-1
   
   nnfits <- matrix(NA, nrow=nr, ncol=n.em+n.st)
-  xi2 <- rep(NA, nr)
+  log_lik <- rep(NA, nr)
   tbar <- rep(NA, nr)
   tbar.lum <- rep(NA, nr)
   zbar <- rep(NA, nr)
@@ -159,7 +159,7 @@ nnfitmanga <- function(gdat, dz,
     residual <- (flux-fitted)*sqrt(ivar)
     
     ## basic measures of goodness of fit            
-    xi2[i] <- fit.nn$deviance/(nl-fit.nn$nsetp-1)
+    log_lik[i] <- fit.nn$deviance/2
     
     ## plot spectrum and fit
     tdat <- data.frame(lambda=lambda.rest, gflux=flux, fitted=fitted,
@@ -171,8 +171,8 @@ nnfitmanga <- function(gdat, dz,
     tlong$variable[tlong$variable=="gflux"] <- "fitted"
     base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
                   ylab="", col=val, 
-                  main=paste("(",i,") xi2= ", 
-                             format(xi2[i], digits=3), sep=""))
+                  main=paste("(",i,") log_lik= ", 
+                             format(log_lik[i], digits=0), sep=""))
     add.resid <- facet_grid(variable ~ ., scale="free_y")
     plot(base+add.resid)
     
@@ -180,7 +180,7 @@ nnfitmanga <- function(gdat, dz,
     flux.em[i,in.em] <- b.em*em.mult[in.em]
     nzeros <- sort(fit.nn$passive)
     X <- cbind(x.st*as.vector(rlaw(lambda.rest,tauv[i])), x.em)[allok,nzeros]
-    V <- max(xi2[i], 1)*mpinv(crossprod(X, diag(ivar[allok])) %*% X)
+    V <- max(log_lik[i]*2/nl, 1)*mpinv(crossprod(X, diag(ivar[allok])) %*% X)
     sd.b <- rep(NA, n.st+ni.em)
     sd.b[nzeros] <- sqrt(diag(V))
     flux.em.err[i,in.em] <- sd.b[(n.st+1):(n.st+ni.em)]*em.mult[in.em]
@@ -219,7 +219,7 @@ nnfitmanga <- function(gdat, dz,
                   lick=lick, lick.err=lick.err, 
                   flux.em=flux.em, flux.em.err=flux.em.err, gri=gri, 
                   tbar=tbar, tbar.lum=tbar.lum, Mstar=Mstar,
-                  xi2=xi2, nnfits=nnfits)
+                  log_lik=log_lik, nnfits=nnfits)
   returns
 }
                        
@@ -305,7 +305,7 @@ getbpt <- function(nnfits, snthresh=3, PLOT=TRUE) {
                      nii_6584_flux=as.vector(flux.em[,,'nii_6584']),
                      nii_6584_flux_err=as.vector(flux.em.err[,,'nii_6584_err']))
     bpt <- emclass(df, snthresh=snthresh, PLOT=PLOT)
-    bpt[is.na(nnfits$xi2)] <- NA
+    bpt[is.na(nnfits$log_lik)] <- NA
     n2halpha <- matrix(n2halpha, nr, nc)
     o3hbeta <- matrix(oiiihbeta, nr, nc)
     list(bpt=bpt, n2halpha=n2halpha, o3hbeta=o3hbeta)
