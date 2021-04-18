@@ -15,6 +15,13 @@ functions {
 
     return exp(-tauv * fk);
   }
+  
+  real sum_ll(int[] ind, int start, int end, matrix sp_st, matrix sp_em, 
+              vector gflux, vector g_std, vector lambda, real a, real tauv, real delta, 
+              vector b_st_s, vector b_em) {
+    return normal_lpdf(gflux[start:end] | a * (sp_st[start:end, :]*b_st_s) .* calzetti_mod(lambda[start:end], tauv, delta) 
+                    + sp_em[start:end, :]*b_em, g_std[start:end]);
+  }
 
 }
 data {
@@ -32,6 +39,10 @@ data {
     vector[nt*nz] dT;        // width of age bins
     matrix[nl, n_em] sp_em; //emission line profiles
 }
+transformed data {
+  int grainsize = 1;
+  int ind[nl] = rep_array(1, nl);
+}
 parameters {
     real a;
     simplex[nt*nz] b_st_s;
@@ -44,9 +55,9 @@ model {
     a ~ normal(1, 10.);
     tauv ~ normal(0, 1.);
     delta ~ normal(0., 0.1);
-    gflux ~ normal(a * (sp_st*b_st_s) .* calzetti_mod(lambda, tauv, delta) 
-                    + sp_em*b_em, g_std);
-}
+    target += reduce_sum(sum_ll, ind, grainsize, sp_st, sp_em, gflux, g_std, lambda,
+                          a, tauv, delta, b_st_s, b_em);
+    }
 
 // put in for posterior predictive checking and log_lik
 

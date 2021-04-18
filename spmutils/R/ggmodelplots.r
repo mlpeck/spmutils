@@ -66,13 +66,10 @@ plotmgh <- function(mgh, ages, quants=c(.025, .975), log="", ylim=c(0,1)) {
 }
 
 addnnmgh <- function(ggraph, nnfits, which.spax, z, ages, mstar, cumfrac=TRUE, color="red", linetype=2) {
-  if (length(which.spax)==1) {
-    which.spax <- c(which.spax,1)
-  }
   ns <- length(mstar)
   nt <- length(ages)
   nz <- ns/nt
-  rmass <- matrix(nnfits$nnfits[which.spax[1],which.spax[2],1:ns]*mstar, nt, nz)
+  rmass <- matrix(nnfits$nnfits[which.spax, 1:ns]*mstar, nt, nz)
   rmass <- rowSums(rmass) * cosmo::lum.sol(1, z)
   mgh <- c(sum(rmass), sum(rmass)-cumsum(rmass))
   if (cumfrac) {
