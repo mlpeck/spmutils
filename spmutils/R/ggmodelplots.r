@@ -209,18 +209,28 @@ plotpp <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise
     require(ggplot2)
     lambda <- sfit$spm_data$lambda
     gflux <- sfit$spm_data$gflux
+    g_std <- sfit$spm_data$g_std
     pp <- rstan::extract(sfit$stanfit)$gflux_rep
     if (exists("norm_g", sfit)) {
       gflux <- gflux * sfit$norm_g
+      g_std <- g_std * sfit$norm_g
     }
     ylims <- apply(pp, 2, quantile, probs=quants)
     df <- data.frame(lambda=lambda, gflux=gflux, fitted=colMeans(pp),
-                     ymin=ylims[1,], ymax=ylims[2,])
+                     ymin=ylims[1,], ymax=ylims[2,],
+                     residual = (gflux-colMeans(pp))/g_std,
+                     rmin=(gflux-ylims[1,])/g_std, rmax=(gflux-ylims[2,])/g_std)
     g1 <- ggplot(df, aes(x=lambda, y=gflux)) + geom_line(color=gcolor)
     g1 <- g1 + xlab(expression(lambda)) + ylab("flux")
     g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), fill=fcolor, alpha=0.33)
     g1 <- g1 + geom_line(aes(y=fitted), color=fcolor)
-    g1
+    g2 <- ggplot(df, aes(x=lambda, y=residual)) + geom_line(color=gcolor)
+    g2 <- g2 + xlab(expression(lambda)) + ylab("residual")
+    g2 <- g2 + geom_ribbon(aes(ymin=rmin, ymax=rmax), fill=fcolor, alpha=0.33)
+    g2 <- g2 + geom_line(aes(y=residual), color=fcolor)
+    g3 <- gridExtra::grid.arrange(g1, g2, nrow=2)
+    plot(g3)
+    list(df=df, g1=g1, g2=g2)
 }
 
 plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
