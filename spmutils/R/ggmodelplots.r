@@ -205,7 +205,8 @@ multimgh3 <- function(mgh_list, ages_list, ids=NULL, quants=c(0.025,0.975),
   list(df=df, graph=g1)
 }
 
-plotpp <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
+plotpp <- function(sfit, title=NULL, 
+                   quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
     require(ggplot2)
     lambda <- sfit$spm_data$lambda
     gflux <- sfit$spm_data$gflux
@@ -224,6 +225,9 @@ plotpp <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise
     g1 <- g1 + xlab(expression(lambda)) + ylab("flux")
     g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), fill=fcolor, alpha=0.33)
     g1 <- g1 + geom_line(aes(y=fitted), color=fcolor)
+    if (!is.null(title)) {
+      g1 <- g1 + ggtitle(title)
+    }
     g2 <- ggplot(df, aes(x=lambda, y=residual)) + geom_line(color=gcolor)
     g2 <- g2 + xlab(expression(lambda)) + ylab("residual")
     g2 <- g2 + geom_ribbon(aes(ymin=rmin, ymax=rmax), fill=fcolor, alpha=0.33)
