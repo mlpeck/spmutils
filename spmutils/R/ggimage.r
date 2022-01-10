@@ -1,7 +1,7 @@
 ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
                     xlab=NULL, ylab=NULL, legend=NULL, title=NULL,
                     xrev=FALSE, yrev=FALSE, asp=1,
-                    addContour=FALSE, binwidth=NULL
+                    addcontour=FALSE, binwidth=NULL
                    ) {
     require(ggplot2)
     if (is.null(x)) x <- 1:nrow(zmat)
@@ -38,7 +38,7 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
     if (!is.null(title)) {
         g1 <- g1 + ggtitle(title)
     }
-    g1
+    invisible(list(df=df, graph=g1))
 }
 
 ## simple 2D spatial interpolation
@@ -58,8 +58,10 @@ fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=100, usefields=TRUE) {
 }
 
 ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = FALSE, 
-  addborders = TRUE, addfp = FALSE, show.legend = TRUE, na.value = "grey95", 
-  palette = "Set1", colors = viridis::viridis(256), fpcolor = "red") {
+                addborders = TRUE, addfp = FALSE, addcontour = FALSE,
+                show.legend = TRUE, na.value = "grey95", 
+                palette = "Set1", colors = viridis::viridis(256), 
+                contourcolor="black", cbinwidth=10, fpcolor = "red") {
   require(ggplot2)
   df <- data.frame(x = gdat$xpos, y = gdat$ypos, z = z)
   if (exists("x.orig", gdat)) {
@@ -85,6 +87,14 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
   if (addfiberpos) {
     g1 <- g1 + geom_point(aes(x = x, y = y), data = df2)
   }
+  if (addcontour) {
+    allok <- complete.cases(df)
+    zsurf <- akima::interp(x=df$x[allok], y=df$y[allok], z=df$z[allok])
+    xy <- expand.grid(zsurf$x, zsurf$y)
+    df4 <- data.frame(x=xy[,1], y=xy[,2], z=as.vector(zsurf$z))
+    g1 <- g1 + geom_contour(aes(x=x, y=y, z=z), data=df4, 
+                            color=contourcolor, binwidth=cbinwidth, na.rm=TRUE)
+  }
   if (addfp) {
     g1 <- g1 + ggalt::geom_encircle(aes(x = x, y = y), data = df2, 
       expand = 0.02, color = fpcolor, size = 2)
@@ -100,7 +110,7 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
     g1 <- g1 + scale_fill_gradientn(colors = colors, na.value = na.value)
   }
   plot(g1)
-  g1
+  invisible(list(df=df, graph=g1))
 }
 
 
@@ -197,6 +207,6 @@ ggmapfac <- function(fac, x, y, palette="Set1",
     if (!is.null(title)) {
         g1 <- g1 + ggtitle(title)
     }
-    g1
+    invisible(list(df=xyz, graph=g1))
 }
                      

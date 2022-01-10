@@ -89,6 +89,7 @@ readcube <- function(fname, drpcat=NULL, flatten=TRUE) {
       ivar <- matrix(ivar[hasdata], nrow=nxy)
       mask <- matrix(mask[hasdata], nrow=nxy)
       
+      snr <- as.vector(snr)[hasdata]
       gimg <- as.vector(gimg)[hasdata]
       rimg <- as.vector(rimg)[hasdata]
       iimg <- as.vector(iimg)[hasdata]
