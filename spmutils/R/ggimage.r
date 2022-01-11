@@ -17,7 +17,7 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
         geom_raster(aes(fill=z)) + 
         scale_fill_gradientn(colors=col, na.value="#FFFFFF00") +
         coord_fixed(ratio = asp)
-    if (addContour) {
+    if (addcontour) {
         if (!is.null(binwidth)) {
             g1 <- g1 + geom_contour(binwidth=binwidth, na.rm=TRUE)
         } else {
