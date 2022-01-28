@@ -61,7 +61,7 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
                 addborders = TRUE, addfp = FALSE, addcontour = FALSE,
                 show.legend = TRUE, na.value = "grey95", 
                 palette = "Set1", colors = viridis::viridis(256), 
-                contourcolor="black", cbinwidth=10, fpcolor = "red") {
+                contourcolor="black", cbinwidth=25, fpcolor = "red") {
   require(ggplot2)
   df <- data.frame(x = gdat$xpos, y = gdat$ypos, z = z)
   if (exists("x.orig", gdat)) {
@@ -92,8 +92,8 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
     zsurf <- akima::interp(x=df$x[allok], y=df$y[allok], z=df$z[allok])
     xy <- expand.grid(zsurf$x, zsurf$y)
     df4 <- data.frame(x=xy[,1], y=xy[,2], z=as.vector(zsurf$z))
-    g1 <- g1 + geom_contour(aes(x=x, y=y, z=z), data=df4, 
-                            color=contourcolor, binwidth=cbinwidth, na.rm=TRUE)
+    g1 <- g1 + metR::geom_contour2(aes(x=x, y=y, z=z, label = ..level..), data=df4, 
+                            color=contourcolor, binwidth=cbinwidth, label_size=5, na.rm=TRUE)
   }
   if (addfp) {
     g1 <- g1 + ggalt::geom_encircle(aes(x = x, y = y), data = df2, 
@@ -112,6 +112,7 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
   plot(g1)
   invisible(list(df=df, graph=g1))
 }
+
 
 
 plotci <- function(df, names,

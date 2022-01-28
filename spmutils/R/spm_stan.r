@@ -81,7 +81,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
 
 ## star formation history, mass growth history, etc.
 
-get_sfh <- function(..., z, fibersinbin=1, density=TRUE, tsf=0.1) {
+get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
@@ -101,11 +101,7 @@ get_sfh <- function(..., z, fibersinbin=1, density=TRUE, tsf=0.1) {
   nz <- ncol(b_st)/nt
   T.gyr <- 10^(ages-9)
   isf <- which.min(abs(tsf-T.gyr))
-  if (density) {
-    binarea <- log10(pi*fibersinbin*cosmo::ascale(z)^2)
-  } else {
-    binarea <- 0
-  }
+  binarea <- log10(pi*fibersinbin*cosmo::ascale(z)^2)
   b_st <- t(t(b_st)*norm_st)*cosmo::lum.sol(1, z)
   rmass <- t(t(b_st) * mstar)
   sfh_post <- matrix(0, nsim, nt)
@@ -122,7 +118,7 @@ get_sfh <- function(..., z, fibersinbin=1, density=TRUE, tsf=0.1) {
   sigma_mstar <- log10(b_st %*% mstar) - binarea
   ssfr <- sigma_sfr - sigma_mstar
   list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post,
-       sigma_mstar=sigma_mstar, sigma_sfr=sigma_sfr, ssfr=ssfr, relsfr=relsfr)
+       sigma_mstar=sigma_mstar, sfr=sfr, sigma_sfr=sigma_sfr, ssfr=ssfr, relsfr=relsfr)
 }
 
 batch_sfh <- function(gdat, sfits, tsf=0.1) {
@@ -150,6 +146,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   mgh_post <- array(0, dim=c(nsim, nt+1, nf))
   totalmg_post <- matrix(0, nsim, nt+1)
   sigma_mstar <- matrix(NA, nsim, nf)
+  sfr <- matrix(NA, nsim, nf)
   sigma_sfr <- matrix(NA, nsim, nf)
   ssfr <- matrix(NA, nsim, nf)
   relsfr <- matrix(NA, nsim, nf)
@@ -161,12 +158,14 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
     mgh_post[,,i] <- sfi$mgh_post
     totalmg_post <- totalmg_post + sfi$totalmg_post
     sigma_mstar[, i] <- sfi$sigma_mstar
+    sfr[, i] <- sfi$sfr
     sigma_sfr[, i] <- sfi$sigma_sfr
     ssfr[, i] <- sfi$ssfr
     relsfr[,i] <- sfi$relsfr
   }
-  list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post,
-       sigma_mstar=sigma_mstar, sigma_sfr=sigma_sfr, ssfr=ssfr, relsfr=relsfr)
+  sfr_tot <- log10(rowSums(10^sfr))
+  list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post, sfr_tot=sfr_tot,
+       sigma_mstar=sigma_mstar, sfr=sfr, sigma_sfr=sigma_sfr, ssfr=ssfr, relsfr=relsfr)
 }
   
   
