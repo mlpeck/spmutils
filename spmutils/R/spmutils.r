@@ -22,7 +22,7 @@ names(lambda_f) <- c("oii_3727","oii_3729","neiii_3869",
                      "oi_6300","oi_6363","nii_6548","nii_6584",
                      "sii_6717","sii_6730")
 
-lambda_balmer <- c(3890.151,3970.072,4102.892,4341.684,4862.683,6564.614)
+lambda_balmer <- c(3890.158,3971.202,4102.899,4341.691,4862.691,6564.632)
 names(lambda_balmer) <- c("h_zeta","h_epsilon","h_delta","h_gamma","h_beta","h_alpha")
 
 lambda_em <- sort(c(lambda_f, lambda_balmer))
