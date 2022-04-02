@@ -38,6 +38,7 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
     if (!is.null(title)) {
         g1 <- g1 + ggtitle(title)
     }
+    plot(g1)
     invisible(list(df=df, graph=g1))
 }
 

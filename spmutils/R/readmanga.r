@@ -90,10 +90,6 @@ readcube <- function(fname, drpcat=NULL, flatten=TRUE) {
       mask <- matrix(mask[hasdata], nrow=nxy)
       
       snr <- as.vector(snr)[hasdata]
-      gimg <- as.vector(gimg)[hasdata]
-      rimg <- as.vector(rimg)[hasdata]
-      iimg <- as.vector(iimg)[hasdata]
-      zimg <- as.vector(zimg)[hasdata]
     }
     list(meta=list(mangaid=mangaid, plateifu=plateifu, versdrp=versdrp, 
                    ra=ra, dec=dec, l=l, b=b, 
