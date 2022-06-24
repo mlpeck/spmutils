@@ -98,9 +98,6 @@ nnfitmanga <- function(gdat, dz,
   nr <- length(dz)
   lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   olib.ssp <- lib.ssp
-  tauv_err <- rep(NA, nr)
-  vdisp.em_err <- rep(NA, nr)
-  vdisp.st_err <- rep(NA, nr)
   tauv <- rep(NA, nr)
   vdisp.em <- rep(NA, nr)
   vdisp.st <- rep(NA, nr)
@@ -115,17 +112,11 @@ nnfitmanga <- function(gdat, dz,
   
   nnfits <- matrix(NA, nrow=nr, ncol=n.em+n.st)
   log_lik <- rep(NA, nr)
-  tbar <- rep(NA, nr)
-  tbar.lum <- rep(NA, nr)
-  zbar <- rep(NA, nr)
-  Mstar <- rep(NA, nr)
-  gri <- matrix(NA, nrow=nr, ncol=nrow(gri.ssp))
   d4000_n <- rep(NA, nr)
   d4000_n_err <- rep(NA, nr)
   lick <- matrix(NA, nrow=nr, ncol=length(which.lick))
   lick.err <- matrix(NA, nrow=nr, ncol=length(which.lick))
   flux.em <- matrix(NA, nrow=nr, ncol=n.em)
-  flux.em.err <- matrix(NA, nrow=nr, ncol=n.em)
   
   for (i in 1:nr) {
     if (is.na(gdat$snr[i]) || gdat$snr[i]<=snrthresh || is.na(dz[i])) {
@@ -142,10 +133,6 @@ nnfitmanga <- function(gdat, dz,
     tauv[i] <- fitij$pars[1]
     vdisp.em[i] <- 100*fitij$pars[2]
     vdisp.st[i] <- 100*fitij$pars[3]
-    errs <- tryCatch(sqrt(diag(solve(fitij$hessian))), error=function(e) rep(NA, 3))
-    tauv_err[i] <- errs[1]
-    vdisp.em_err[i] <- 100*errs[2]
-    vdisp.st_err[i] <- 100*errs[3]
     
     b <- fit.nn$x
     b.st <- b[1:n.st]
@@ -178,23 +165,7 @@ nnfitmanga <- function(gdat, dz,
     
     ## emission line fluxes and errors
     flux.em[i,in.em] <- b.em*em.mult[in.em]
-    nzeros <- sort(fit.nn$passive)
-    X <- cbind(x.st*as.vector(rlaw(lambda.rest,tauv[i])), x.em)[allok,nzeros]
-    V <- max(log_lik[i]*2/nl, 1)*mpinv(crossprod(X, diag(ivar[allok])) %*% X)
-    sd.b <- rep(NA, n.st+ni.em)
-    sd.b[nzeros] <- sqrt(diag(V))
-    flux.em.err[i,in.em] <- sd.b[(n.st+1):(n.st+ni.em)]*em.mult[in.em]
-    
-    ## gri magnitudes
-    gri[i,] <- -2.5*log10(gri.ssp %*% b.st) + 20.092
-    
-    ## summaries from estimated sfh
-    tbar[i] <- log10(sum(rep(T.gyr, nz)*b.st)/sum(b.st))+9
-    tbar.lum[i] <- log10(sum(rep(T.gyr, nz) * b.st * gri.ssp["r",])/
-    sum(b.st * gri.ssp["r",]))+9
-    m.st <- cosmo::lum.sol(1, z)*b.st
-    Mstar[i] <- log10(sum(m.st*mstar))
-    
+
     ##d4000 and lick indices
     d4 <- d4000n(lambda.rest, gflux.net, ivar)
     d4000_n[i] <- d4$d4000_n
@@ -206,19 +177,14 @@ nnfitmanga <- function(gdat, dz,
   }    
   
   flux.em[flux.em > flux.em.bad] <- NA
-  flux.em.err[!is.finite(flux.em)] <- NA
   dimnames(lick)[[2]] <- as.list(names(d4)[1:length(which.lick)])
   dimnames(lick.err)[[2]] <- as.list(names(d4)[(length(which.lick)+1):length(d4)])
-  dimnames(gri)[[2]] <- dimnames(gri.ssp)[[1]]
   dimnames(flux.em)[[2]] <- as.list(names(lambda.em))
-  dimnames(flux.em.err)[[2]] <- as.list(paste(names(lambda.em), "_err", sep=""))
   options("warn"=0)
   returns <- list(tauv=tauv, vdisp.em=vdisp.em, vdisp.st=vdisp.st, 
-                  tauv_err=tauv_err, vdisp.em_err=vdisp.em_err, vdisp.st_err=vdisp.st_err,
                   d4000_n=d4000_n, d4000_n_err=d4000_n_err, 
                   lick=lick, lick.err=lick.err, 
-                  flux.em=flux.em, flux.em.err=flux.em.err, gri=gri, 
-                  tbar=tbar, tbar.lum=tbar.lum, Mstar=Mstar,
+                  flux.em=flux.em,
                   log_lik=log_lik, nnfits=nnfits)
   returns
 }
@@ -274,40 +240,5 @@ replot <- function(gdat, dz, nnfit, lib.ssp,
     plot(g1)
     options("warn" = 0)
     g1
-}
-
-getbpt <- function(nnfits, snthresh=3, PLOT=TRUE) {
-    flux.em <- nnfits$flux.em
-    flux.em.err <- nnfits$flux.em.err
-    dims <- dim(flux.em)
-    nr <- dims[1]
-    nc <- dims[2]
-    
-    n2halpha <- as.vector(log10(flux.em[,,'nii_6584']/flux.em[,,'h_alpha']))
-    sn.halpha <- as.vector(flux.em[,,'h_alpha']/flux.em.err[,,'h_alpha_err'])
-    sn.nii <- as.vector(flux.em[,,'nii_6584']/flux.em.err[,,'nii_6584_err'])
-    n2halpha[!is.finite(n2halpha) | sn.halpha<snthresh | sn.nii<snthresh] <- NA
-    
-    oiiihbeta <- as.vector(log10(flux.em[,,'oiii_5007']/flux.em[,,'h_beta']))
-    sn.hbeta <- as.vector(flux.em[,,'h_beta']/flux.em.err[,,'h_beta_err'])
-    sn.oiii <- as.vector(flux.em[,,'oiii_5007']/flux.em.err[,,'oiii_5007_err'])
-    oiiihbeta[!is.finite(oiiihbeta) | sn.hbeta<snthresh | sn.oiii<snthresh] <- NA
-    
-    df <- data.frame(n2halpha=n2halpha, o3hbeta=oiiihbeta,
-                     oii_flux=as.vector(flux.em[,,'oii_3729']), 
-                     oii_flux_err=as.vector(flux.em.err[,,'oii_3729_err']),
-                     h_beta_flux=as.vector(flux.em[,,'h_beta']),
-                     h_beta_flux_err=as.vector(flux.em.err[,,'h_beta_err']),
-                     oiii_flux=as.vector(flux.em[,,'oiii_5007']),
-                     oiii_flux_err=as.vector(flux.em.err[,,'oiii_5007_err']),
-                     h_alpha_flux=as.vector(flux.em[,,'h_alpha']),
-                     h_alpha_flux_err=as.vector(flux.em.err[,,'h_alpha_err']),
-                     nii_6584_flux=as.vector(flux.em[,,'nii_6584']),
-                     nii_6584_flux_err=as.vector(flux.em.err[,,'nii_6584_err']))
-    bpt <- emclass(df, snthresh=snthresh, PLOT=PLOT)
-    bpt[is.na(nnfits$log_lik)] <- NA
-    n2halpha <- matrix(n2halpha, nr, nc)
-    o3hbeta <- matrix(oiiihbeta, nr, nc)
-    list(bpt=bpt, n2halpha=n2halpha, o3hbeta=o3hbeta)
 }
 
