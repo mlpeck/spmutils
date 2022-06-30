@@ -59,7 +59,7 @@ fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=100, usefields=TRUE) {
 }
 
 ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = FALSE, 
-                addborders = TRUE, addfp = FALSE, addcontour = FALSE,
+                addborders = addfiberpos, addfp = FALSE, addcontour = !addfiberpos,
                 show.legend = TRUE, na.value = "grey95", 
                 palette = "Set1", colors = viridis::viridis(256), 
                 contourcolor="black", cbinwidth=25, fpcolor = "red") {

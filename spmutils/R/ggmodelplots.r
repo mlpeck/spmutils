@@ -118,7 +118,7 @@ multimgh <- function(..., ages, ids=NULL, quants=c(0.025,0.975),
     g1 <- g1 + labs(color=legend)
   }
   plot(g1)
-  list(df=df, graph=g1)
+  invisible(list(df=df, graph=g1))
 }
 
 
@@ -164,7 +164,7 @@ multimgh2 <- function(mghs, ages, ids=NULL, quants=c(0.025,0.975),
     g1 <- g1 + labs(color=legend)
   }
   plot(g1)
-  list(df=df, graph=g1)
+  invisible(list(df=df, graph=g1))
 }
 
 ## mghs and ages in lists of same length
@@ -202,7 +202,7 @@ multimgh3 <- function(mgh_list, ages_list, ids=NULL, quants=c(0.025,0.975),
     g1 <- g1 + labs(color=legend)
   }
   plot(g1)
-  list(df=df, graph=g1)
+  invisible(list(df=df, graph=g1))
 }
 
 plotpp <- function(sfit, title=NULL, 
@@ -234,7 +234,7 @@ plotpp <- function(sfit, title=NULL,
     g2 <- g2 + geom_line(aes(y=residual), color=fcolor)
     g3 <- gridExtra::grid.arrange(g1, g2, nrow=2)
     plot(g3)
-    list(df=df, g1=g1, g2=g2)
+    invisible(list(df=df, g1=g1, g2=g2))
 }
 
 plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
@@ -264,6 +264,108 @@ plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turqu
     g2 <- g2 + geom_line(aes(y=rmean), color=fcolor)
     g2 <- g2 + geom_ribbon(aes(ymin=rmin, ymax=rmax), fill=fcolor)
     plot(grid.arrange(g1, g2, nrow=2, heights=c(3,1)))
-    list(g1=g1, g2=g2)
+    invisible(list(g1=g1, g2=g2))
 }
 
+## plot a spectrum and nnls fit
+
+replotnn <- function(gdat, dz, nnfit, lib.ssp, 
+                   which.spax, rlaw=calzetti,
+                   title=NULL) {
+    require(ggplot2)
+    require(reshape2)
+    options("warn" = -1)
+    
+    flux <- gdat$flux[which.spax, ]
+    ivar <- gdat$ivar[which.spax, ]
+    lambda <- gdat$lambda
+    lambda.rest <- lambda/(1+gdat$meta$z+dz$dz[which.spax])
+    logl <- log10(lambda.rest)
+    lib.ssp$lambda <- airtovac(lib.ssp$lambda)
+    lib.ssp <- regrid(lambda.rest, lib.ssp)
+    x.st <- blur.lib(lib.ssp, nnfit$vdisp.st[which.spax])
+    n.st <- ncol(x.st)
+    allok <- complete.cases(flux, ivar, x.st)
+    x.st <- x.st[allok, ]
+    lambda.rest <- lambda.rest[allok]
+    lambda.em <- lambda_em
+    x_em <- make_emlib(lambda.em, nnfit$vdisp.em[which.spax], logl, allok)
+    in.em <- x_em$in_em
+    x.em <- x_em$x_em
+    b <- nnfit$nnfits[which.spax, ]
+    b <- b[!is.na(b)]
+    b.st <- b[1:n.st]
+    b.em <- b[(n.st+1):length(b)]
+    fitted <- cbind(x.st*as.vector(rlaw(lambda.rest,nnfit$tauv[which.spax])), x.em[allok,]) %*% b
+    fitted.em <- x.em[allok,] %*% b.em
+    gflux.net <- flux[allok]-fitted.em
+    residual <- (flux[allok]-fitted)*sqrt(ivar[allok])
+    tdat <- data.frame(lambda=lambda.rest, flux=flux[allok], fitted=fitted,
+                       fitted.em=fitted.em, residual=residual)
+    tlong <- melt(tdat, id.vars="lambda")
+    val <- c(rep(" obs",length(lambda.rest)), rep("fitted",length(lambda.rest)),
+             rep("em", length(lambda.rest)), rep("residual",length(lambda.rest)))
+    tlong <- cbind(tlong, val = val)
+    tlong$variable[tlong$variable !="residual"] <- "flux"
+    base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
+                  ylab="", col=val)
+    if (!is.null(title)) {
+        base <- base + ggtitle(title)
+    }
+    add.resid <- facet_grid(variable ~ ., scale="free_y")
+    g1 <- base+add.resid
+    plot(g1)
+    options("warn" = 0)
+    g1
+}
+
+## replot spectrum and posterior predictions from a stan model
+
+replotpp <- function(gdat, dz, nnfits, sfits, which.spax,
+                     prep_data = prep_data_mod,
+                     title=NULL, 
+                     quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
+    require(ggplot2)
+    
+    stan_dat <- prep_data(gdat, dz$dz, nnfits, which.spax=which.spax)
+    
+    ## recreate the input spectrum and posterior predictive fits
+    
+    lambda <- stan_dat$lambda
+    gflux <- stan_dat$gflux
+    g_std <- stan_dat$g_std
+    gflux <- gflux * stan_dat$norm_g
+    g_std <- g_std * stan_dat$norm_g
+    
+    nsim <- nrow(sfits$tauv)
+    nl <- stan_dat$nl
+    tauv <- sfits$tauv[,which.spax]
+    delta <- sfits$delta[,which.spax]
+    att <- matrix(0, nl, nsim)
+    for (i in 1:nsim) {
+      att[, i] <- calzetti_mod(lambda, tauv[i], delta[i])
+    }
+    mu_g <- stan_dat$norm_g * tcrossprod(stan_dat$sp_st, sfits$b_st[,,which.spax]) * att + 
+                      stan_dat$norm_g * stan_dat$norm_em * tcrossprod(stan_dat$sp_em, sfits$b_em[,stan_dat$in_em,which.spax])
+    pp <- mu_g + matrix(rnorm(nl*nsim, sd=rep(g_std, nsim)), nl, nsim)
+    
+    ylims <- apply(pp, 1, quantile, probs=quants)
+    df <- data.frame(lambda=lambda, gflux=gflux, fitted=rowMeans(pp),
+                     ymin=ylims[1,], ymax=ylims[2,],
+                     residual = (gflux-rowMeans(pp))/g_std,
+                     rmin=(gflux-ylims[1,])/g_std, rmax=(gflux-ylims[2,])/g_std)
+    g1 <- ggplot(df, aes(x=lambda, y=gflux)) + geom_line(color=gcolor)
+    g1 <- g1 + xlab(expression(lambda)) + ylab("flux")
+    g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), fill=fcolor, alpha=0.33)
+    g1 <- g1 + geom_line(aes(y=fitted), color=fcolor)
+    if (!is.null(title)) {
+      g1 <- g1 + ggtitle(title)
+    }
+    g2 <- ggplot(df, aes(x=lambda, y=residual)) + geom_line(color=gcolor)
+    g2 <- g2 + xlab(expression(lambda)) + ylab("residual")
+    g2 <- g2 + geom_ribbon(aes(ymin=rmin, ymax=rmax), fill=fcolor, alpha=0.33)
+    g2 <- g2 + geom_line(aes(y=residual), color=fcolor)
+    g3 <- gridExtra::grid.arrange(g1, g2, nrow=2)
+    plot(g3)
+    invisible(list(df=df, g1=g1, g2=g2))
+}
