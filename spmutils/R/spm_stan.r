@@ -115,10 +115,13 @@ get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
   sfr <- log10(rowSums(sfh_post[,1:isf])/T.gyr[isf])-9.
   relsfr <- sfr - log10(rowSums(sfh_post)/(cosmo::dcos(Inf)$dT-cosmo::dcos(z)$dT)) + 6
   sigma_sfr <- sfr - binarea
-  sigma_mstar <- log10(b_st %*% mstar) - binarea
+  mstar <- log10(b_st %*% mstar)
+  sigma_mstar <- mstar - binarea
   ssfr <- sigma_sfr - sigma_mstar
   list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post,
-       sigma_mstar=sigma_mstar, sfr=sfr, sigma_sfr=sigma_sfr, ssfr=ssfr, relsfr=relsfr)
+       mstar=mstar, sigma_mstar=sigma_mstar, 
+       sfr=sfr, sigma_sfr=sigma_sfr, 
+       ssfr=ssfr, relsfr=relsfr)
 }
 
 batch_sfh <- function(gdat, sfits, tsf=0.1) {
@@ -145,6 +148,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   sfh_post <- array(NA, dim=c(nsim, nt, nf))
   mgh_post <- array(0, dim=c(nsim, nt+1, nf))
   totalmg_post <- matrix(0, nsim, nt+1)
+  mstar <- matrix(NA, nsim, nf)
   sigma_mstar <- matrix(NA, nsim, nf)
   sfr <- matrix(NA, nsim, nf)
   sigma_sfr <- matrix(NA, nsim, nf)
@@ -157,6 +161,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
     sfh_post[,,i] <- sfi$sfh_post
     mgh_post[,,i] <- sfi$mgh_post
     totalmg_post <- totalmg_post + sfi$totalmg_post
+    mstar[, i] <- sfi$mstar
     sigma_mstar[, i] <- sfi$sigma_mstar
     sfr[, i] <- sfi$sfr
     sigma_sfr[, i] <- sfi$sigma_sfr
@@ -165,7 +170,9 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   }
   sfr_tot <- log10(rowSums(10^sfr))
   list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post, sfr_tot=sfr_tot,
-       sigma_mstar=sigma_mstar, sfr=sfr, sigma_sfr=sigma_sfr, ssfr=ssfr, relsfr=relsfr)
+       mstar=mstar, sigma_mstar=sigma_mstar, 
+       sfr=sfr, sigma_sfr=sigma_sfr, 
+       ssfr=ssfr, relsfr=relsfr)
 }
   
   
@@ -219,7 +226,7 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
     norm_st <- ins$norm_st
     norm_em <- ins$norm_em
   }
-  emlines <- emlines[ins$in.em]
+  emlines <- emlines[ins$in_em]
   b_st <- t(t(b_st)*norm_st)
   ne <- ncol(b_em)
   nsim <- nrow(b_em)
@@ -227,11 +234,13 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
   em.mult <- emlines*log(10)/10000
 
   flux_em <- matrix(NA, nsim, ne)
+  logl_em <- matrix(NA, nsim, ne)
   sigma_logl_em <- matrix(NA, nsim, ne)
   ew_em <- matrix(NA, nsim, ne)
   
   flux_em <- t(t(b_em)*em.mult)*norm_em
-  sigma_logl_em <- cosmo::loglum.ergs(flux_em, z) - binarea
+  logl_em <- cosmo::loglum.ergs(flux_em, z)
+  sigma_logl_em <- logl_em - binarea
   
   mu_st <- tcrossprod(b_st, as.matrix(lib.ssp[, -1]))
   il_em <- findInterval(emlines, lib.ssp$lambda)
@@ -243,7 +252,7 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
   colnames(flux_em) <- names(emlines)
   colnames(sigma_logl_em) <- names(emlines)
   colnames(ew_em) <- names(emlines)
-  list(flux_em=flux_em, sigma_logl_em=sigma_logl_em, ew_em=ew_em)
+  list(flux_em=flux_em, logl_em=logl_em, sigma_logl_em=sigma_logl_em, ew_em=ew_em)
 }
 
 batch_em <- function(gdat, sfits, ew_width=15) {
@@ -264,19 +273,19 @@ batch_em <- function(gdat, sfits, ew_width=15) {
   
   for (i in 1:nf) {
     if (is.na(sfits$b_st[1, 1, i])) next
-    in.em <- sfits$in_em[!is.na(sfits$in_em[,i]), i]
+    in_em <- sfits$in_em[!is.na(sfits$in_em[,i]), i]
     if(is.null(dim(norm_st))) {
       nst <- norm_st[i]
     } else {
       nst <- norm_st[,i]
     }
-    emi <- get_em(b_em=sfits$b_em[,in.em,i]*norm_g[i], b_st=sfits$b_st[,,i]*norm_g[i], 
+    emi <- get_em(b_em=sfits$b_em[,in_em,i]*norm_g[i], b_st=sfits$b_st[,,i]*norm_g[i], 
                   norm_em=sfits$norm_em[i], norm_st=nst, 
-                  in.em=in.em, z=gdat$meta$z,
+                  in_em=in_em, z=gdat$meta$z,
                   fibersinbin=gdat$fibersinbin[i], ew_width=ew_width)
-    flux_em[,in.em,i] <- emi$flux_em
-    sigma_logl_em[,in.em,i] <- emi$sigma_logl_em
-    ew_em[,in.em,i] <- emi$ew_em
+    flux_em[,in_em,i] <- emi$flux_em
+    sigma_logl_em[,in_em,i] <- emi$sigma_logl_em
+    ew_em[,in_em,i] <- emi$ew_em
   }
   dimnames(flux_em)[[2]] <- names(emlines)
   dimnames(sigma_logl_em)[[2]] <- names(emlines)

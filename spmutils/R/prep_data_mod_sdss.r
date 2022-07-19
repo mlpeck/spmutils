@@ -1,9 +1,9 @@
-prep_data_mod_sdss <- function (gdat, nnfits, which.spax=1) {
+prep_data_mod_sdss <- function (gdat, dz=0, nnfits, which.spax=1) {
   i <- which.spax
   z <- gdat$meta$z
   flux <- gdat$flux
   ivar <- gdat$ivar
-  lambda.rest <- gdat$lambda/(1 + z)
+  lambda.rest <- gdat$lambda
   logl <- log10(lambda.rest)
   T.gyr <- 10^(ages - 9)
   dT <- diff(c(0, T.gyr))
