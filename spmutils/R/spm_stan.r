@@ -250,6 +250,7 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
     ew_em[, i] <- flux_em[, i]/fc
   }
   colnames(flux_em) <- names(emlines)
+  colnames(logl_em) <- names(emlines)
   colnames(sigma_logl_em) <- names(emlines)
   colnames(ew_em) <- names(emlines)
   list(flux_em=flux_em, logl_em=logl_em, sigma_logl_em=sigma_logl_em, ew_em=ew_em)
