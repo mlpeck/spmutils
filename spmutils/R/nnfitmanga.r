@@ -159,7 +159,7 @@ nnfitmanga <- function(gdat, dz,
     base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
                   ylab="", col=val, 
                   main=paste("(",i,") log_lik= ", 
-                             format(log_lik[i], digits=0), sep=""))
+                             format(log_lik[i], digits=1), sep=""))
     add.resid <- facet_grid(variable ~ ., scale="free_y")
     plot(base+add.resid)
     
