@@ -168,7 +168,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
     ssfr[, i] <- sfi$ssfr
     relsfr[,i] <- sfi$relsfr
   }
-  sfr_tot <- log10(rowSums(10^sfr))
+  sfr_tot <- log10(rowSums(10^sfr, na.rm=TRUE))
   list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post, sfr_tot=sfr_tot,
        mstar=mstar, sigma_mstar=sigma_mstar, 
        sfr=sfr, sigma_sfr=sigma_sfr, 
