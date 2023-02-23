@@ -44,7 +44,7 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
 
 ## simple 2D spatial interpolation
 
-fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=100, usefields=TRUE) {
+fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=0, usefields=TRUE) {
     ny <- max(round((max(dec)-min(dec))*3600/dxy), min_ny)
     nx <- ny
     if (usefields) {
@@ -55,7 +55,7 @@ fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=100, usefields=TRUE) {
       allok <- complete.cases(ra, dec, zvals)
       zsurf <- akima::interp(x=ra[allok], y=dec[allok], z=zvals[allok], nx=nx, ny=ny)
     }
-    list(ra=zsurf$x, dec=zsurf$y, z=zsurf$z)
+    list(zmat=zsurf$z, ra=zsurf$x, dec=zsurf$y)
 }
 
 ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = FALSE, 
@@ -117,7 +117,8 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
 
 
 plotci <- function(df, names,
-                   col=NULL, shape=NULL, palette="Set1", 
+                   col=NULL, shape=NULL, palette="Set1",
+                   alpha_ebar = 1,
                    legend=NULL, legend2=NULL,
                    xlab=NULL, ylab=NULL, title=NULL) {
   require(ggplot2)
@@ -145,15 +146,15 @@ plotci <- function(df, names,
   } else {
       g1 <- g1 + geom_point(aes_string(shape=as.name(shape)), na.rm=TRUE)
   }
-  g1 <- g1 + geom_errorbar(aes(ymin = ymin, ymax = ymax), na.rm=TRUE)
+  g1 <- g1 + geom_errorbar(aes(ymin = ymin, ymax = ymax), alpha=alpha_ebar, na.rm=TRUE)
   if (!is.null(col)) {
     g1 <- g1 + geom_point(aes_string(color = as.name(col)), na.rm=TRUE)
-    g1 <- g1 + geom_errorbar(aes_string(ymin=ymin, ymax=ymax, color = as.name(col)), na.rm=TRUE)
+    g1 <- g1 + geom_errorbar(aes_string(ymin=ymin, ymax=ymax, color = as.name(col)), alpha=alpha_ebar, na.rm=TRUE)
   }
   if (!is.na(names[2])) {
-    g1 <- g1 + geom_errorbarh(aes(xmin = xmin, xmax = xmax), na.rm=TRUE)
+    g1 <- g1 + geom_errorbarh(aes(xmin = xmin, xmax = xmax), alpha=alpha_ebar, na.rm=TRUE)
     if (!is.null(col)) {
-      g1 <- g1 + geom_errorbarh(aes_string(xmin = xmin, xmax = xmax, color = as.name(col)), na.rm=TRUE)
+      g1 <- g1 + geom_errorbarh(aes_string(xmin = xmin, xmax = xmax, color = as.name(col)), alpha=alpha_ebar, na.rm=TRUE)
     }
   }
   if (is.factor(col)) {
