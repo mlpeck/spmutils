@@ -40,7 +40,8 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", yl
     if (log=="y" || log=="xy") {
         g1 <- g1 + scale_y_log10()
     }
-    g1
+    plot(g1)
+    invisible(list(graph=g1, df=df))
 }
 
 plotmgh <- function(mgh, ages, quants=c(.025, .975), log="", ylim=c(0,1)) {
@@ -62,7 +63,8 @@ plotmgh <- function(mgh, ages, quants=c(.025, .975), log="", ylim=c(0,1)) {
     if (log=="y" || log=="xy") {
         g1 <- g1 + scale_y_log10()
     }
-    g1
+    plot(g1)
+    invisible(list(graph=g1, df=df))
 }
 
 addnnmgh <- function(ggraph, nnfits, which.spax, z, ages, mstar, cumfrac=TRUE, color="red", linetype=2) {
