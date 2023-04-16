@@ -44,7 +44,7 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", yl
     invisible(list(graph=g1, df=df))
 }
 
-plotmgh <- function(mgh, ages, quants=c(.025, .975), log="", ylim=c(0,1)) {
+plotmgh <- function(mgh, ages, quants=c(.025, .975), log="") {
     require(ggplot2)
     ages.gyr <- 10^(ages-9)
     mgh.mean <- colMeans(mgh)
@@ -55,8 +55,7 @@ plotmgh <- function(mgh, ages, quants=c(.025, .975), log="", ylim=c(0,1)) {
     df <- data.frame(T=ages.gyr, mgh=mgh.mean, ymin=lims[1,], ymax=lims[2,])
     g1 <- ggplot(df, aes(x=T, y=mgh)) + geom_line() + xlab("T (Gyr)") + 
             ylab("Cumulative mass fraction")
-    g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), color="gray70", alpha=0.5) +
-            ylim(ylim)
+    g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), color="gray70", alpha=0.5)
     if (log=="x" || log=="xy") {
         g1 <- g1 + scale_x_log10()
     }
@@ -81,7 +80,7 @@ addnnmgh <- function(ggraph, nnfits, which.spax, z, ages, mstar, cumfrac=TRUE, c
   ggraph + geom_line(aes(x=t, y=mgh), data=df, color=color, linetype=linetype)
 }
   
-  
+## two or more mass growth histories with same age breaks  
 
 multimgh <- function(..., ages, ids=NULL, quants=c(0.025,0.975),
                      palette="Set1", alpha=0.5, legend=NULL) {
@@ -123,7 +122,7 @@ multimgh <- function(..., ages, ids=NULL, quants=c(0.025,0.975),
   invisible(list(df=df, graph=g1))
 }
 
-
+## mass growth histories in an array (as returned by batch_sfh for example
 
 multimgh2 <- function(mghs, ages, ids=NULL, quants=c(0.025,0.975),
                      palette="Set1", alpha=0.5, legend=NULL) {
@@ -206,6 +205,8 @@ multimgh3 <- function(mgh_list, ages_list, ids=NULL, quants=c(0.025,0.975),
   plot(g1)
   invisible(list(df=df, graph=g1))
 }
+
+## (re)plot posterior predictive fit of spectrum
 
 plotpp <- function(sfit, title=NULL, 
                    quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
