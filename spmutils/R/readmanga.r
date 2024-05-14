@@ -1,4 +1,4 @@
-readcube <- function(fname, drpcat=NULL, flatten=TRUE) {
+readcube <- function(fname, drpcat=drpcat17, flatten=TRUE) {
     require(FITSio)
     
     ff <- file(fname, "rb")
@@ -100,7 +100,7 @@ readcube <- function(fname, drpcat=NULL, flatten=TRUE) {
         gimg=gimg, rimg=rimg, iimg=iimg, zimg=zimg)
 }
 
-readrss <- function(fname, drpcat=NULL, ndither=3) {
+readrss <- function(fname, drpcat=drpcat17, ndither=3) {
     require(FITSio)
 
     ff <- file(fname, "rb")

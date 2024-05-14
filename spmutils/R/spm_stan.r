@@ -366,7 +366,7 @@ get_lineratios <- function(flux_em, tauv, delta=0, tauv_mult=1, alaw=calzetti_mo
 }
 
   
-sum_batchfits <- function(gdat, nnfits, sfits, drpcat, alaw=calzetti_mod, intr_bd=2.86, clim=0.95) {
+sum_batchfits <- function(gdat, nnfits, sfits, drpcat=drpcat17, alaw=calzetti_mod, intr_bd=2.86, clim=0.95) {
     
     tauv.bd <- function(flux_em, intr_bd, delta=0, alaw) {
       bd <- flux_em[,'h_alpha']/flux_em[,'h_beta']
