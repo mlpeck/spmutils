@@ -109,8 +109,8 @@ init_opt_mod <- function(spm_data, nnfits, which.spax, jv) {
 init_sampler_mod <- function(X, stan_opt, jv) {
   a <- as.numeric(stan_opt$a + rnorm(1, sd=jv))
   b_st_s <- stan_opt$b_st_s + runif(length(stan_opt$b_st_s), min=jv/10, max=jv)
-  b_st_s <- b_st_s/sum(b_st_s)
-  b_em <- stan_opt$b_em + runif(length(stan_opt$b_em), min=jv/10, max=jv)
+  b_st_s <- as.vector(b_st_s/sum(b_st_s))
+  b_em <- as.vector(stan_opt$b_em + runif(length(stan_opt$b_em), min=jv/10, max=jv))
   tauv <- as.numeric(stan_opt$tauv + runif(1, min=jv/10, max=jv))
   delta <- as.numeric(stan_opt$delta + rnorm(1, sd=jv))
   list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv, delta=delta)
