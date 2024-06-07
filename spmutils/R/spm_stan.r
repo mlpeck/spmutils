@@ -22,7 +22,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     
     stanfit <- sampling(stan_model, data=spm_data,
                      chains=chains, iter=iter, warmup=warmup, thin=thin,
-                     cores=min(chains, getOption("mc.cores")),
+                     cores=getOption("mc.cores"),
                      init=init_pars, open_progress=OP, ...)
     
     list(spm_data=spm_data, stanfit=stanfit, 
@@ -38,7 +38,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
                         prep_data = prep_data_mod,
                         init_opt = init_opt_mod,
                         init_sampler = init_sampler_mod,
-                        stan_file="spm_dust_mod_simpl.stan", stan_filedir="~/spmcode/",
+                        stan_file="spm_dust_mod_psum.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, 
                         jv=1.e-4,
                         iter=1000, warmup=250, chains=4,
