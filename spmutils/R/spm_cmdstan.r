@@ -18,9 +18,8 @@ cmdstanfit_one <- function(gdat, dz, nnfits, which.spax,
   spm_data <- prep_data(gdat, dz, nnfits, which.spax)
   inits <- init_opt(spm_data, nnfits, which.spax, jv)
   spm_opt <- stan_model$optimize(data=spm_data, init=inits, iter=iter_opt, threads=1)
-  optsol <- data.frame(read_cmdstan_csv(spm_opt$output_files(include_failed = TRUE))$point_estimates)
  
-  init_files <- init_sampler(stan_opt=optsol, jv=jv, chains=chains)
+  init_files <- init_sampler(stan_opt=spm_opt$mle(), jv=jv, chains=chains)
   
 #  init_pars <- lapply(X=1:chains, init_sampler, stan_opt=spm_opt$par, jv=jv)
   
