@@ -1,7 +1,7 @@
 cmdstanfit_one <- function(gdat, dz, nnfits, which.spax,
                            prep_data = prep_data_mod,
                            init_opt = init_opt_cmd,
-                           init_sampler = init_sampler_mod,
+                           init_sampler = init_sampler_cmd,
                            stan_model=NULL,
                            stan_file="spm_dust_mod_psum.stan", stan_filedir="~/spmcode/",
                            iter_opt=5000, 
