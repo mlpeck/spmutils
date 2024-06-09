@@ -12,7 +12,9 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", yl
             yvals <- t(apply(sfh, 1, cumsum)/ages.years)
         },
         instsfr = {
-            dt <- diff(c(0,ages.years))
+            tl <- c(0, ages[-1] - diff(ages)/2)
+            tu <- c(tl[-1], 1.5*ages[nt] - 0.5*ages[nt-1])
+            dt <- 10^tu - 10^tl
             yvals <- t(t(sfh)/dt)
         },
         cumfrac = {
