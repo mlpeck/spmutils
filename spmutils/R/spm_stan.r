@@ -7,7 +7,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         iter_opt=5000, 
                         jv=1.e-4,
                         iter=1000, warmup=250, thin=1, chains=4, 
-                        OP=FALSE, ...) {
+                        open_progress=TRUE, ...) {
     
     require(rstan)
     if (is.null(stan_model)) {
@@ -23,7 +23,7 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
     stanfit <- sampling(stan_model, data=spm_data,
                      chains=chains, iter=iter, warmup=warmup, thin=thin,
                      cores=getOption("mc.cores"),
-                     init=init_pars, open_progress=OP, ...)
+                     init=init_pars, open_progress=open_progress, ...)
     
     list(spm_data=spm_data, stanfit=stanfit, 
          norm_g=spm_data$norm_g, norm_st=spm_data$norm_st, norm_em=spm_data$norm_em, in_em=spm_data$in_em)
@@ -42,7 +42,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
                         iter_opt=5000, 
                         jv=1.e-4,
                         iter=1000, warmup=250, chains=4,
-                        OP=FALSE,
+                        open_progress=TRUE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
     dims <- dim(gdat$flux)
     dz <- dz$dz
@@ -71,7 +71,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
                             stan_model=smodel,
                             iter_opt=iter_opt, jv=jv,
                             iter = iter, warmup = warmup, chains = chains, 
-                            OP=OP, ...)
+                            open_progress=open_progress, ...)
         plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
         update_tracked(i, sfit, fpart)
         rm(sfit)
