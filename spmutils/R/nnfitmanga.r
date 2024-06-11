@@ -3,7 +3,6 @@
 getdz <- function(gdat, lib, snrthresh=5, nlthresh=2000, dzlim=0.003, searchinterval=1e-4) {
   nr <- nrow(gdat$flux)
   dz <- numeric(nr)
-  dz.err <- numeric(nr)
   z <- gdat$meta$z
   lambda <- gdat$lambda
   fmla <- as.formula(paste("f ~", paste(names(lib)[-1], collapse="+")))
@@ -19,13 +18,11 @@ getdz <- function(gdat, lib, snrthresh=5, nlthresh=2000, dzlim=0.003, searchinte
   for (i in 1:nr) {
     if (is.na(gdat$snr[i]) || gdat$snr[i]<=snrthresh) {
       dz[i] <- NA
-      dz.err[i] <- NA
       next
     }
     f <- gdat$flux[i, ]
     if (length(which(!is.na(f))) < nlthresh) {
       dz[i] <- NA
-      dz.err[i] <- NA
       next
     }
     iv <- gdat$ivar[i, ]
@@ -35,9 +32,8 @@ getdz <- function(gdat, lib, snrthresh=5, nlthresh=2000, dzlim=0.003, searchinte
                            LB=z0-searchinterval, UB=z0+searchinterval, 
                            control=list(trace=0))
     dz[i] <- bestz$pars
-    dz.err[i] <- sqrt(2/bestz$hessian)
   }
-  list(dz=dz, dz.err=dz.err)
+  dz
 }
 
 ## Moore-Penrose pseudo inverse (needed for uncertainty estimates in fit.nn)
@@ -94,7 +90,6 @@ nnfitmanga <- function(gdat, dz,
     fit.nn$deviance/2
   }
   
-  dz <- dz$dz
   nr <- length(dz)
   lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   olib.ssp <- lib.ssp

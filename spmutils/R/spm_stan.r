@@ -45,7 +45,6 @@ stanfit_batch <- function(gdat, dz, nnfits,
                         open_progress=TRUE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
     dims <- dim(gdat$flux)
-    dz <- dz$dz
     nsim <- (iter-warmup)*chains
     nt <- length(ages)
     nr <- dims[1]

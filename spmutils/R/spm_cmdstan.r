@@ -54,7 +54,6 @@ cmdstanfit_batch <- function(gdat, dz, nnfits,
 ) {
   
     dims <- dim(gdat$flux)
-    dz <- dz$dz
     nsim <- iter*chains
     nt <- length(ages)
     nr <- dims[1]
