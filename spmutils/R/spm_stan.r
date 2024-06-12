@@ -71,7 +71,7 @@ stanfit_batch <- function(gdat, dz, nnfits,
                             iter_opt=iter_opt, jv=jv,
                             iter = iter, warmup = warmup, chains = chains, 
                             open_progress=open_progress, ...)
-        plot(plotpp(sfit)+ggtitle(paste("fiber =", i)))
+        plotpp(sfit, title=paste("fiber", i))
         update_tracked(i, sfit, fpart)
         rm(sfit)
     }
