@@ -88,7 +88,7 @@ nnfitsdss <- function(files, dname="spectra",
     residual <- (flux-fitted)*sqrt(ivar)
     
     ## basic measures of goodness of fit            
-    log_lik[i] <- -nl*log(2*pi) + sum(log(ivar[allok])) - fit.nn$deviance/2
+    log_lik[i] <- (-nl*log(2*pi) + sum(log(ivar[allok])) - fit.nn$deviance)/2
     
     ## plot spectrum and fit
     tdat <- data.frame(lambda=lambda.rest, gflux=flux, fitted=fitted,

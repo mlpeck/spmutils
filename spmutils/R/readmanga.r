@@ -168,11 +168,17 @@ readrss <- function(fname, drpcat=drpcat17, ndither=3) {
                    xpos=xpos, ypos=ypos)
 }
 
-stackrss <- function(gdat) {
+stackrss <- function(gdat, mask55=FALSE) {
     meta <- gdat$meta
     ivar <- apply(gdat$ivar, c(1,3), sum, na.rm=TRUE)
     ivar[ivar <= 0] <- NA
     flux <- apply(gdat$flux*gdat$ivar, c(1,3), sum, na.rm=TRUE)/ivar
+    
+    ## mask the area around the 5577 A night sky line
+    
+    if (mask55) {
+      flux[, 1875:1880] <- NA
+    }
     snr <- apply(sqrt(pmax(flux,0)^2*ivar), 1, median, na.rm=TRUE)
     xpos <- rowMeans(gdat$xpos)
     ypos <- rowMeans(gdat$ypos)

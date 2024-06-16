@@ -87,7 +87,7 @@ nnfitmanga <- function(gdat, dz,
       fit.nn <<- nnls(cbind(x.st[allok,]*att, x.em[allok, ])*sqrt(ivar[allok]),
                       flux[allok]*sqrt(ivar[allok]))
     }
-    fit.nn$deviance/2
+    fit.nn$deviance
   }
   
   nr <- length(dz)
@@ -141,7 +141,7 @@ nnfitmanga <- function(gdat, dz,
     residual <- (flux-fitted)*sqrt(ivar)
     
     ## basic measures of goodness of fit            
-    log_lik[i] <- -nl*log(2*pi) + sum(log(ivar[allok])) - fit.nn$deviance/2
+    log_lik[i] <- (-nl*log(2*pi) + sum(log(ivar[allok])) - fit.nn$deviance)/2
     
     ## plot spectrum and fit
     tdat <- data.frame(lambda=lambda.rest, gflux=flux, fitted=fitted,
