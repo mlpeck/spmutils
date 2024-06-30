@@ -284,7 +284,7 @@ replotnn <- function(gdat, dz, nnfit, lib.ssp,
     flux <- gdat$flux[which.spax, ]
     ivar <- gdat$ivar[which.spax, ]
     lambda <- gdat$lambda
-    lambda.rest <- lambda/(1+gdat$meta$z+dz$dz[which.spax])
+    lambda.rest <- lambda/(1+gdat$meta$z+dz[which.spax])
     logl <- log10(lambda.rest)
     lib.ssp$lambda <- airtovac(lib.ssp$lambda)
     lib.ssp <- regrid(lambda.rest, lib.ssp)
@@ -332,7 +332,7 @@ replotpp <- function(gdat, dz, nnfits, sfits, which.spax,
                      quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
     require(ggplot2)
     
-    stan_dat <- prep_data(gdat, dz$dz, nnfits, which.spax=which.spax)
+    stan_dat <- prep_data(gdat, dz, nnfits, which.spax=which.spax)
     
     ## recreate the input spectrum and posterior predictive fits
     
