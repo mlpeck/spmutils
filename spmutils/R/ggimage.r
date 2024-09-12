@@ -60,6 +60,7 @@ fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=0, usefields=TRUE) {
 
 ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = FALSE, 
                 addborders = addfiberpos, addfp = FALSE, addcontour = !addfiberpos,
+                addbinno = !addfiberpos,
                 show.legend = TRUE, na.value = "grey95", 
                 palette = "Set1", colors = viridis::viridis(256), 
                 contourcolor="black", cbinwidth=25, fpcolor = "red") {
@@ -87,6 +88,9 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
   }
   if (addfiberpos) {
     g1 <- g1 + geom_point(aes(x = x, y = y), data = df2)
+  }
+  if (addbinno) {
+    g1 <- g1 + annotate(geom="text", x=df$x, y=df$y, label=1:length(df$x))
   }
   if (addcontour) {
     allok <- complete.cases(df)
