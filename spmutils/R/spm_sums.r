@@ -566,29 +566,6 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat=drpcat17, alaw=calzetti_mo
              bpt=bpt)
 }
 
-## estimated mean mass fraction in broad ages bins
-
-sum_binnedmass <- function(mgh_post, ages, ages.bins = c(0.1, 2.5, 5)) {
-  T.gyr <- 10^(ages-9)
-  ind.bins <- findInterval(ages.bins, T.gyr)
-  dims <- dim(mgh_post)
-  nsim <- dims[1]
-  nfib <- dims[3]
-  nt <- length(ages.bins)+2
-  mgh.binned <- mgh_post[, c(1, ind.bins, dims[2]), ]
-  mdiff <- mgh.binned[, 1:(nt-1),] - mgh.binned[, 2:nt, ]
-  mb_m <- apply(mdiff, c(2, 3), mean)
-  mb_sd <- apply(mdiff, c(2, 3), sd)
-  df <- data.frame(cbind(t(mb_m), t(mb_sd)))
-  df[df==0] <- NA
-  T.ind <- c(0, T.gyr[ind.bins], T.gyr[length(T.gyr)])
-  nt <- length(T.ind)
-  bnames <- paste(formatC(T.ind[1:(nt-1)], format="f", digits=1), " < T < ",
-                  formatC(T.ind[2:nt], format="f", digits=1), sep="")
-  names(df) <- c(paste(bnames, "_m", sep=""), paste(bnames, "_sd", sep=""))
-  df
-}
-
 
 ## computes highest density interval from a sample of representative values,
 ##   estimated as shortest credible interval.
