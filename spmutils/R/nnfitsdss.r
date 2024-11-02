@@ -41,7 +41,7 @@ nnfitsdss <- function(files, dname="spectra",
   }
   
   nr <- length(files)
-  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
+#  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   olib.ssp <- lib.ssp
   tauv <- rep(NA, nr)
   vdisp.em <- rep(NA, nr)

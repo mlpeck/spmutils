@@ -57,7 +57,7 @@ prep_data_mod <- function (gdat, dz, nnfits, which.spax) {
   logl <- log10(lambda.rest)
   T.gyr <- 10^(ages - 9)
   dT <- diff(c(0, T.gyr))
-  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
+#  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   lib.st <- regrid(lambda.rest, lib.ssp)
   x.st <- blur.lib(lib.st, nnfits$vdisp.st[i])
   n.st <- ncol(x.st)
