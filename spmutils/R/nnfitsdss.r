@@ -98,10 +98,9 @@ nnfitsdss <- function(files, dname="spectra",
              rep("residual",length(lambda.rest)))
     tlong <- cbind(tlong, val = val)
     tlong$variable[tlong$variable=="gflux"] <- "fitted"
-    base <- qplot(lambda, value, data=tlong, geom="line", xlab=expression(lambda), 
-                  ylab="", col=val, 
-                  main=paste("(",i,") log_lik= ", 
-                             format(log_lik[i], digits=3), sep=""))
+    base <- ggplot(tlong, aes(x=lambda, y=value, color=val)) + geom_line() + xlab(expression(lambda)) +
+                  ylab(NULL) + ggtitle(paste("(",i,") log_lik= ", 
+                               format(log_lik[i], digits=1), sep=""))
     add.resid <- facet_grid(variable ~ ., scale="free_y")
     plot(base+add.resid)
     
