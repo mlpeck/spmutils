@@ -238,7 +238,7 @@ plotpp <- function(sfit, title=NULL,
     g2 <- g2 + geom_ribbon(aes(ymin=rmin, ymax=rmax), fill=fcolor, alpha=0.33)
     g2 <- g2 + geom_line(aes(y=residual), color=fcolor)
     g3 <- gridExtra::grid.arrange(g1, g2, nrow=2)
-    plot(g3)
+#    plot(g3)
     invisible(list(df=df, g1=g1, g2=g2))
 }
 
