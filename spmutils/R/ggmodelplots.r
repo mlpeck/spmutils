@@ -3,19 +3,23 @@
 plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", ylim=NULL) {
     require(ggplot2)
     
-    nt <- ncol(sfh)
+    nt <- length(ages)
     ns <- nrow(sfh)
     ages.years <- 10^ages
     yvals <- matrix(0, ns, nt)
     switch(ptype,
-        avgsfr = {
-            yvals <- t(apply(sfh, 1, cumsum)/ages.years)
-        },
         instsfr = {
-            tl <- c(0, ages[-1] - diff(ages)/2)
-            tu <- c(tl[-1], 1.5*ages[nt] - 0.5*ages[nt-1])
-            dt <- 10^tu - 10^tl
-            yvals <- t(t(sfh)/dt)
+          dt <- diff(ages)/2
+          dt <- c(dt[1], dt)
+          tl <- 10^(ages-dt)
+          tu <- 10^(ages+dt)
+          yvals <- t(t(sfh)/(tu-tl))
+        },
+        mgh = {
+          yvals <- sfh
+        },
+        avgsfr = {
+          yvals <- t(apply(sfh, 1, cumsum)/ages.years)
         },
         cumfrac = {
             tm <- rowSums(sfh)
