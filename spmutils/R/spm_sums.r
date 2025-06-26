@@ -29,8 +29,8 @@ get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
     sfh_post <- sfh_post + b_st[,((i-1)*nt+1):(i*nt)]
     mgh_post <- mgh_post + rmass[,((i-1)*nt+1):(i*nt)]
   }
-  totalmg_post <- cbind(rowSums(mgh_post), rowSums(mgh_post) - t(apply(mgh_post, 1, cumsum)))
-  mgh_post <- cbind(rep(1, nsim), 1 - (t(apply(mgh_post, 1, cumsum))/rowSums(mgh_post)))
+  totalmg_post <- rowSums(mgh_post) - t(apply(mgh_post, 1, cumsum))
+  mgh_post <- 1 - (t(apply(mgh_post, 1, cumsum))/rowSums(mgh_post))
   sfr <- log10(rowSums(sfh_post[,1:isf])/T.gyr[isf])-9.
   relsfr <- sfr - log10(rowSums(sfh_post)/(cosmo::dcos(Inf)$dT-cosmo::dcos(z)$dT)) + 6
   sigma_sfr <- sfr - binarea
@@ -65,8 +65,8 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   }
   
   sfh_post <- array(NA, dim=c(nsim, nt, nf))
-  mgh_post <- array(0, dim=c(nsim, nt+1, nf))
-  totalmg_post <- matrix(0, nsim, nt+1)
+  mgh_post <- array(0, dim=c(nsim, nt, nf))
+  totalmg_post <- matrix(0, nsim, nt)
   mstar <- matrix(NA, nsim, nf)
   sigma_mstar <- matrix(NA, nsim, nf)
   sfr <- matrix(NA, nsim, nf)
