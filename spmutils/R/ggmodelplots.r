@@ -53,7 +53,7 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", yl
 plotsfhmgh <- function(sfh_post, ages, which.spax) {
   g1 <- plotsfh(sfh_post$sfh[,,which.spax], ages=ages, ptype="instsfr", log="x")$graph
   g1 <- g1 + ggtitle(paste("Bin", which.spax))
-  g2 <- plotsfh(sfh_post$mgh[,,which.spax], ages=ages, ptype="mgh"), log="x")$graph
+  g2 <- plotsfh(sfh_post$mgh[,,which.spax], ages=ages, ptype="mgh", log="x")$graph
   gridExtra::grid.arrange(g1, g2, ncol=1)
 }
 
