@@ -1,4 +1,4 @@
-nnfitsdss <- function(files, dname="spectra",
+nnfitsdss <- function(files, lib.mod, dname="spectra",
                       lambda.em = spmutils::lambda_em,
                       nz=length(Z), nt=length(ages),
                       snrthresh=5, tsf=0.1, rlaw=calzetti, dlogl=1.e-4, 
@@ -6,6 +6,8 @@ nnfitsdss <- function(files, dname="spectra",
                       flux.em.bad=1.e5,
                       which.lick=c(1, 13:15, 20),
                       PLOT=TRUE) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
   require(nnls)
   require(cosmo)
   if (PLOT) {
@@ -41,7 +43,6 @@ nnfitsdss <- function(files, dname="spectra",
   }
   
   nr <- length(files)
-#  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   olib.ssp <- lib.ssp
   tauv <- rep(NA, nr)
   vdisp.em <- rep(NA, nr)

@@ -49,13 +49,15 @@ mpinv <- function(X) {
 
 ## nnls fits to manga data cube or rss file
 
-nnfitmanga <- function(gdat, dz,
+nnfitmanga <- function(gdat, dz, lib.mod,
                        nz=length(Z), nt=length(ages),
                        snrthresh=5, tsf=0.1, rlaw=calzetti, dlogl=1.e-4, 
                        starts = c(0.25, 1., 1.), lb=c(0, 0.7, 0), ub=c(3., 5., 5.),
                        flux.em.bad=1.e5,
                        which.lick=c(1, 13:15, 20),
                        PLOT=TRUE) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
   require(nnls)
   require(cosmo)
   if (PLOT) {
@@ -63,7 +65,7 @@ nnfitmanga <- function(gdat, dz,
     require(reshape2)
     options("warn" = -1)
   }
-  
+
   ## variables and function definition for nonlinear fit to get tau, vdisp.st, vdisp.em
   
   fit.nn <- NULL
