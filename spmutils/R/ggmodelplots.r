@@ -50,12 +50,20 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", yl
     invisible(list(graph=g1, df=df))
 }
 
+plotsfhmgh <- function(sfh_post, ages, which.spax) {
+  g1 <- plotsfh(sfh_post$sfh[,,which.spax], ages=ages, ptype="instsfr", log="x")$graph
+  g1 <- g1 + ggtitle(paste("Bin", which.spax))
+  g2 <- plotsfh(sfh_post$mgh[,,which.spax], ages=ages, ptype="mgh"), log="x")$graph
+  gridExtra::grid.arrange(g1, g2, ncol=1)
+}
+
 plotmgh <- function(mgh, ages, quants=c(.025, .975), log="") {
     require(ggplot2)
     ages.gyr <- 10^(ages-9)
     mgh.mean <- colMeans(mgh)
     if (length(mgh.mean) > length(ages.gyr)) {
-      ages.gyr <- c(1.e-9, ages.gyr)
+      tl <- 1.5*ages[1] - 0.5*ages[2]
+      ages.gyr <- c(10^(tl-9), ages.gyr)
     }
     lims <- apply(mgh, 2, quantile, probs=quants)
     df <- data.frame(T=ages.gyr, mgh=mgh.mean, ymin=lims[1,], ymax=lims[2,])

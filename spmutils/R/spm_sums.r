@@ -1,6 +1,8 @@
 ## star formation history, mass growth history, etc.
 
-get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
+get_sfh <- function(..., z, lib.mod, fibersinbin=1, tsf=0.1) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
@@ -43,13 +45,15 @@ get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
        ssfr=ssfr, relsfr=relsfr)
 }
 
-batch_sfh <- function(gdat, sfits, tsf=0.1) {
+batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
   b_st <- sfits$b_st
   norm_st <- sfits$norm_st
   dims <- dim(b_st)
   nsim <- dims[1]
   nt <- length(ages)
-  nz <- dims[2]/nt
+  nz <- length(Z)
   nf <- dims[3]
   if (exists("norm_g", sfits)) {
     norm_g <- sfits$norm_g
@@ -76,7 +80,7 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
-      sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i])
+      sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, lib.mod=lib.mod, fibersinbin=fibersinbin[i])
       sfh_post[,,i] <- sfi$sfh_post
       mgh_post[,,i] <- sfi$mgh_post
       totalmg_post <- totalmg_post + sfi$totalmg_post
@@ -97,7 +101,9 @@ batch_sfh <- function(gdat, sfits, tsf=0.1) {
 
 ## some sorta useful summary measures
 
-get_proxies <- function(...) {
+get_proxies <- function(..., lib.mod) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
@@ -285,8 +291,10 @@ get_lineratios <- function(flux_em, tauv, delta=0, tauv_mult=1, alaw=calzetti_mo
 }
 
 
-sum_batchfits <- function(gdat, nnfits, sfits, drpcat=drpcat17, alaw=calzetti_mod, intr_bd=2.86, clim=0.95) {
-  
+sum_batchfits <- function(gdat, nnfits, sfits, lib.mod, drpcat=drpcat17, alaw=calzetti_mod, intr_bd=2.86, clim=0.95) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
+
   tauv.bd <- function(flux_em, intr_bd, delta=0, alaw) {
     bd <- flux_em[,'h_alpha']/flux_em[,'h_beta']
     bd[!is.finite(bd)] <- NA
@@ -371,7 +379,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat=drpcat17, alaw=calzetti_mo
     }
   }
   
-  sfh_all <- batch_sfh(gdat, sfits)
+  sfh_all <- batch_sfh(gdat, sfits, lib.mod)
   
   for (i in 1:4) {
     assign(paste(varnames[i], suffixes[1], sep="_"), colMeans(sfh_all[[varnames[i]]]))
@@ -408,7 +416,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, drpcat=drpcat17, alaw=calzetti_mo
     } else {
       norm_st <- 1/sfits$norm_st[,i]
     }
-    proxi <- get_proxies(b_st=sfits$b_st[,,i], norm_st=norm_st)
+    proxi <- get_proxies(b_st=sfits$b_st[,,i], norm_st=norm_st, lib.mod=lib.mod)
     
     tbar_m[i] <- mean(proxi$tbar)
     tbar_std[i] <- sd(proxi$tbar)

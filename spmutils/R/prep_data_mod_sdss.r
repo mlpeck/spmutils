@@ -1,18 +1,23 @@
-prep_data_mod_sdss <- function (gdat, dz=0, nnfits, which.spax=1) {
+prep_data_mod_sdss <- function (gdat, lib.mod, nnfits, dz=0, which.spax=1) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
   i <- which.spax
   z <- gdat$meta$z
   flux <- gdat$flux
   ivar <- gdat$ivar
   lambda.rest <- gdat$lambda
   logl <- log10(lambda.rest)
-  T.gyr <- 10^(ages - 9)
-  dT <- diff(c(0, T.gyr))
+  dt <- diff(ages)/2
+  dt <- c(dt[1], dt)
+  tl <- 10^(ages-dt)
+  tu <- 10^(ages+dt)
+  dT <- (tu-tl)*10^(-9)
   lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   lib.st <- regrid(lambda.rest, lib.ssp)
   x.st <- blur.lib(lib.st, nnfits$vdisp.st[i])
   n.st <- ncol(x.st)
   nz <- length(Z)
-  nt <- n.st/nz
+  nt <- length(ages)
   ind.young <- (0:(nz - 1)) * nt + 1
   allok <- complete.cases(flux, ivar, x.st)
   lambda <- lambda.rest[allok]

@@ -48,7 +48,9 @@ prep_data_avg <- function(gdat, dz, nnfits, which.spax) {
 
 ## normalize by mean over wavelength interval (5375, 5625)
 
-prep_data_mod <- function (gdat, dz, nnfits, which.spax) {
+prep_data_mod <- function (gdat, lib.mod, nnfits, dz, which.spax) {
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
   i <- which.spax
   z <- gdat$meta$z + dz[i]
   flux <- gdat$flux[i, ]
@@ -56,13 +58,16 @@ prep_data_mod <- function (gdat, dz, nnfits, which.spax) {
   lambda.rest <- gdat$lambda/(1 + z)
   logl <- log10(lambda.rest)
   T.gyr <- 10^(ages - 9)
-  dT <- diff(c(0, T.gyr))
-#  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
+  dt <- diff(ages)/2
+  dt <- c(dt[1], dt)
+  tl <- 10^(ages-dt)
+  tu <- 10^(ages+dt)
+  dT <- (tu-tl)*10^(-9)
   lib.st <- regrid(lambda.rest, lib.ssp)
   x.st <- blur.lib(lib.st, nnfits$vdisp.st[i])
   n.st <- ncol(x.st)
   nz <- length(Z)
-  nt <- n.st/nz
+  nt <- length(ages)
   ind.young <- (0:(nz - 1)) * nt + 1
   allok <- complete.cases(flux, ivar, x.st)
   lambda <- lambda.rest[allok]
@@ -99,7 +104,7 @@ init_opt_mod <- function(spm_data, nnfits, which.spax, jv) {
   b_st_s <- b_st_s/a
   b_em <- b[(n_st+1):(n_st+n_em)] * norm_em/norm_g + runif(n_em, min=jv/10, max=jv)
   tauv <- nnfits$tauv[which.spax]
-  if (tauv == 0) tauv=runif(1, min=jv/10, max=jv)
+  if (tauv == 0) tauv <- runif(1, min=jv/10, max=jv)
   delta <- rnorm(1, 0, jv)
   list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv, delta=delta)
 }
