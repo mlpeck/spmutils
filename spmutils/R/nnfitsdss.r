@@ -1,7 +1,6 @@
 nnfitsdss <- function(files, lib.mod, dname="spectra",
                       lambda.em = spmutils::lambda_em,
-                      nz=length(Z), nt=length(ages),
-                      snrthresh=5, tsf=0.1, rlaw=calzetti, dlogl=1.e-4, 
+                      snrthresh=5, rlaw=calzetti, dlogl=1.e-4,
                       starts = c(0.25, 1., 1.), lb=c(0, 0.7, 0), ub=c(3., 5., 5.),
                       flux.em.bad=1.e5,
                       which.lick=c(1, 13:15, 20),
@@ -48,8 +47,6 @@ nnfitsdss <- function(files, lib.mod, dname="spectra",
   vdisp.em <- rep(NA, nr)
   vdisp.st <- rep(NA, nr)
   
-  T.gyr <- 10^(ages-9)
-  isf <- which.min(abs(tsf-T.gyr))
   n.em <- length(lambda.em)
   ##needed to correct for log lambda grid
   em.mult <- lambda.em * log(10)/10000

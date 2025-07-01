@@ -50,8 +50,7 @@ mpinv <- function(X) {
 ## nnls fits to manga data cube or rss file
 
 nnfitmanga <- function(gdat, dz, lib.mod,
-                       nz=length(Z), nt=length(ages),
-                       snrthresh=5, tsf=0.1, rlaw=calzetti, dlogl=1.e-4, 
+                       snrthresh=5, rlaw=calzetti, dlogl=1.e-4,
                        starts = c(0.25, 1., 1.), lb=c(0, 0.7, 0), ub=c(3., 5., 5.),
                        flux.em.bad=1.e5,
                        which.lick=c(1, 13:15, 20),
@@ -93,14 +92,11 @@ nnfitmanga <- function(gdat, dz, lib.mod,
   }
   
   nr <- length(dz)
-#  lib.ssp$lambda <- airtovac(lib.ssp$lambda)
   olib.ssp <- lib.ssp
   tauv <- rep(NA, nr)
   vdisp.em <- rep(NA, nr)
   vdisp.st <- rep(NA, nr)
   
-  T.gyr <- 10^(ages-9)
-  isf <- which.min(abs(tsf-T.gyr))
   lambda.em <- lambda_em
   n.em <- length(lambda.em)
   ##needed to correct for log lambda grid
