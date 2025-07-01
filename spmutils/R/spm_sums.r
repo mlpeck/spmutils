@@ -1,8 +1,6 @@
 ## star formation history, mass growth history, etc.
 
-get_sfh <- function(..., z, lib.mod, fibersinbin=1, tsf=0.1) {
-  attach(lib.mod)
-  on.exit(detach(lib.mod))
+get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
@@ -80,7 +78,7 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
-      sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, lib.mod=lib.mod, fibersinbin=fibersinbin[i])
+      sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i])
       sfh_post[,,i] <- sfi$sfh_post
       mgh_post[,,i] <- sfi$mgh_post
       totalmg_post <- totalmg_post + sfi$totalmg_post
@@ -101,9 +99,7 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
 
 ## some sorta useful summary measures
 
-get_proxies <- function(..., lib.mod) {
-  attach(lib.mod)
-  on.exit(detach(lib.mod))
+get_proxies <- function(...) {
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
@@ -416,7 +412,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, lib.mod, drpcat=drpcat17, alaw=ca
     } else {
       norm_st <- 1/sfits$norm_st[,i]
     }
-    proxi <- get_proxies(b_st=sfits$b_st[,,i], norm_st=norm_st, lib.mod=lib.mod)
+    proxi <- get_proxies(b_st=sfits$b_st[,,i], norm_st=norm_st)
     
     tbar_m[i] <- mean(proxi$tbar)
     tbar_std[i] <- sd(proxi$tbar)

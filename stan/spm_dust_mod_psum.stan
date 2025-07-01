@@ -16,7 +16,7 @@ functions {
     return exp(-tauv * fk);
   }
   
-  real sum_ll(int[] ind, int start, int end, matrix sp_st, matrix sp_em, 
+  real sum_ll(array[] int ind, int start, int end, matrix sp_st, matrix sp_em, 
               vector gflux, vector g_std, vector lambda, real a, real tauv, real delta, 
               vector b_st_s, vector b_em) {
     return normal_lpdf(gflux[start:end] | a * (sp_st[start:end, :]*b_st_s) .* calzetti_mod(lambda[start:end], tauv, delta) 
@@ -41,7 +41,7 @@ data {
 }
 transformed data {
   int grainsize = 1;
-  int ind[nl] = rep_array(1, nl);
+  array[nl] int ind = rep_array(1, nl);
 }
 parameters {
     real a;
@@ -79,6 +79,6 @@ generated quantities {
         log_lik[i] = normal_lpdf(gflux[i] | mu_g[i], g_std[i]);
         mu_g[i] = norm_g * mu_g[i];
     }
-    ll = sum(log_lik);
+    ll = sum(log_lik) - nl * log(norm_g);
 }
 

@@ -1,6 +1,4 @@
-prep_data_mod_sdss <- function (gdat, lib.mod, nnfits, dz=0, which.spax=1) {
-  attach(lib.mod)
-  on.exit(detach(lib.mod))
+prep_data_mod_sdss <- function (gdat, nnfits, dz=0, which.spax=1) {
   i <- which.spax
   z <- gdat$meta$z
   flux <- gdat$flux

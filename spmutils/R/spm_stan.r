@@ -1,9 +1,9 @@
-stanfit_one <- function(gdat, lib.mod, nnfits, dz, which.spax,
+stanfit_one <- function(gdat, nnfits, dz, which.spax,
                         prep_data = prep_data_mod,
                         init_opt = init_opt_mod,
                         init_sampler = init_sampler_mod,
                         stan_model=NULL,
-                        stan_file="spm_dust_mod_simpl.stan", stan_filedir="~/spmcode/",
+                        stan_file="spm_dust_mod_psum.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, jv=1.e-4,
                         iter=1000, warmup=250, thin=1, chains=4,
                         threads_per_chain=4,
@@ -16,7 +16,7 @@ stanfit_one <- function(gdat, lib.mod, nnfits, dz, which.spax,
     }
     rstan_options(threads_per_chain=threads_per_chain)
 
-    spm_data <- prep_data(gdat, lib.mod, nnfits, dz, which.spax)
+    spm_data <- prep_data(gdat, nnfits, dz, which.spax)
     inits <- init_opt(spm_data, nnfits, which.spax, jv)
     spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
     
@@ -48,30 +48,30 @@ stanfit_batch <- function(gdat, lib.mod, nnfits, dz,
                         max_treedepth=10, adapt_delta=0.9,
                         open_progress=FALSE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
-    attach(lib.mod)
-    on.exit(detach(lib.mod))
-    dims <- dim(gdat$flux)
-    nsim <- (iter-warmup)*chains
-    nt <- length(ages)
-    nr <- dims[1]
-    n_st <- ncol(lib.ssp)-1
-    n_em <- length(emlines)
-    nl <- length(gdat$lambda)
-    smodel <- rstan::stan_model(file.path(stan_filedir, stan_file))
-    rstan::rstan_options(threads_per_chain=threads_per_chain)
-    if (is.null(start) || !file.exists(fpart)) {
-      init_tracked(nsim, n_st, n_em, nr)
-      start <- 1
-    } else {
-        load(fpart)
-    }
-    if (is.null(end)) {
-      end <- nr
-    }
-    for (i in start:end) {
-        if (is.na(dz[i]) || is.na(nnfits$tauv[i])) next
-        sfit <- stanfit_one(gdat, dz, nnfits, which.spax=i,
-                            prep_data,
+  attach(lib.mod)
+  on.exit(detach(lib.mod))
+  dims <- dim(gdat$flux)
+  nsim <- (iter-warmup)*chains
+  nt <- length(lib.mod$ages)
+  nr <- dims[1]
+  n_st <- ncol(lib.mod$lib.ssp)-1
+  n_em <- length(emlines)
+  nl <- length(gdat$lambda)
+  smodel <- rstan::stan_model(file.path(stan_filedir, stan_file))
+  rstan::rstan_options(threads_per_chain=threads_per_chain)
+  if (is.null(start) || !file.exists(fpart)) {
+    init_tracked(nsim, n_st, n_em, nr)
+    start <- 1
+  } else {
+    load(fpart)
+  }
+  if (is.null(end)) {
+    end <- nr
+  }
+  for (i in start:end) {
+    if (is.na(dz[i]) || is.na(nnfits$tauv[i])) next
+    sfit <- stanfit_one(gdat, lib.mod, nnfits, dz, which.spax=i,
+                          prep_data,
                             init_opt,
                             init_sampler,
                             stan_model=smodel,
@@ -79,9 +79,9 @@ stanfit_batch <- function(gdat, lib.mod, nnfits, dz,
                             iter = iter, warmup = warmup, chains = chains,
                             max_treedepth = max_treedepth, adapt_delta = adapt_delta,
                             open_progress=open_progress, ...)
-        plotpp(sfit, title=paste("fiber", i))
-        update_tracked(i, sfit, fpart)
-        rm(sfit)
+    plotpp(sfit, title=paste("fiber", i))
+    update_tracked(i, sfit, fpart)
+    rm(sfit)
     }
     return_tracked()
 }

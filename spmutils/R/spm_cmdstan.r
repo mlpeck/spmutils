@@ -1,4 +1,4 @@
-cmdstanfit_one <- function(gdat, lib.mod, nnfits, dz, which.spax,
+cmdstanfit_one <- function(gdat, nnfits, dz, which.spax,
                            prep_data = prep_data_mod,
                            init_opt = init_opt_mod,
                            init_sampler = init_sampler_cmd,
@@ -51,42 +51,41 @@ cmdstanfit_batch <- function(gdat, lib.mod, nnfits, dz,
 ) {
   attach(lib.mod)
   on.exit(detach(lib.mod))
-
-    dims <- dim(gdat$flux)
-    nsim <- iter*chains
-    nt <- length(ages)
-    nr <- dims[1]
-    n_st <- ncol(lib.ssp)-1
-    n_em <- length(emlines)
-    nl <- length(gdat$lambda)
-    smodel <- cmdstanr::cmdstan_model(stan_file=file.path(stan_filedir, stan_file), cpp_options = list(stan_threads = TRUE))
-    if (is.null(start) || !file.exists(fpart)) {
-      init_tracked(nsim, n_st, n_em, nr)
-      start <- 1
-    } else {
-        load(fpart)
-    }
-    if (is.null(end)) {
-      end <- nr
-    }
-    for (i in start:end) {
-        cat(paste("fiber", i, "\n"))
-        if (is.na(dz[i]) || is.na(nnfits$tauv[i])) next
-        sfit <- cmdstanfit_one(gdat, lib.mod, nnfits, dz, which.spax=i,
-                            prep_data = prep_data,
-                            init_opt = init_opt,
-                            init_sampler = init_sampler,
-                            stan_model=smodel,
-                            iter_opt=iter_opt, jv=jv,
-                            iter = iter, warmup = warmup, thin=thin, 
-                            chains = chains, cores=cores, threads=threads,
-                            maxtree=maxtree, adapt_delta=adapt_delta
-                            )
-        plotpp(sfit, title=paste("fiber", i))
-        update_tracked(i, sfit, fpart)
-        rm(sfit)
-    }
-    return_tracked()
+  dims <- dim(gdat$flux)
+  nsim <- iter*chains
+  nt <- length(lib.mod$ages)
+  nr <- dims[1]
+  n_st <- ncol(lib.mod$lib.ssp)-1
+  n_em <- length(emlines)
+  nl <- length(gdat$lambda)
+  smodel <- cmdstanr::cmdstan_model(stan_file=file.path(stan_filedir, stan_file), cpp_options = list(stan_threads = TRUE))
+  if (is.null(start) || !file.exists(fpart)) {
+    init_tracked(nsim, n_st, n_em, nr)
+    start <- 1
+  } else {
+    load(fpart)
+  }
+  if (is.null(end)) {
+    end <- nr
+  }
+  for (i in start:end) {
+    cat(paste("fiber", i, "\n"))
+    if (is.na(dz[i]) || is.na(nnfits$tauv[i])) next
+    sfit <- cmdstanfit_one(gdat, nnfits, dz, which.spax=i,
+                             prep_data = prep_data,
+                             init_opt = init_opt,
+                             init_sampler = init_sampler,
+                             stan_model=smodel,
+                             iter_opt=iter_opt, jv=jv,
+                             iter = iter, warmup = warmup, thin=thin,
+                             chains = chains, cores=cores, threads=threads,
+                             maxtree=maxtree, adapt_delta=adapt_delta
+      )
+    plotpp(sfit, title=paste("fiber", i))
+    update_tracked(i, sfit, fpart)
+    rm(sfit)
+  }
+  return_tracked()
 }
 
 init_opt_cmd <- function(spm_data, nnfits, which.spax, jv) {

@@ -48,9 +48,7 @@ prep_data_avg <- function(gdat, dz, nnfits, which.spax) {
 
 ## normalize by mean over wavelength interval (5375, 5625)
 
-prep_data_mod <- function (gdat, lib.mod, nnfits, dz, which.spax) {
-  attach(lib.mod)
-  on.exit(detach(lib.mod))
+prep_data_mod <- function (gdat, nnfits, dz, which.spax) {
   i <- which.spax
   z <- gdat$meta$z + dz[i]
   flux <- gdat$flux[i, ]
