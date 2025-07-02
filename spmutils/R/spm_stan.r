@@ -70,8 +70,8 @@ stanfit_batch <- function(gdat, nnfits, dz, lib.mod,
   }
   for (i in start:end) {
     if (is.na(dz[i]) || is.na(nnfits$tauv[i])) next
-    sfit <- stanfit_one(gdat, lib.mod, nnfits, dz, which.spax=i,
-                          prep_data,
+    sfit <- stanfit_one(gdat, nnfits, dz, which.spax=i,
+                            prep_data,
                             init_opt,
                             init_sampler,
                             stan_model=smodel,
