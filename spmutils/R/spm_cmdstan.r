@@ -15,7 +15,7 @@ cmdstanfit_one <- function(gdat, nnfits, dz, which.spax,
   if (is.null(stan_model)) {
     stan_model <- cmdstan_model(stan_file=file.path(stan_filedir, stan_file), cpp_options = list(stan_threads = TRUE))
   }
-  spm_data <- prep_data(gdat, lib.mod, nnfits, dz, which.spax)
+  spm_data <- prep_data(gdat, nnfits, dz, which.spax)
   inits <- init_opt(spm_data, nnfits, which.spax, jv)
   spm_opt <- stan_model$optimize(data=spm_data, init=list(inits), iter=iter_opt, threads=1)
  
