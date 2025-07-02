@@ -34,7 +34,7 @@ cmdstanfit_one <- function(gdat, nnfits, dz, which.spax,
 
 
 
-cmdstanfit_batch <- function(gdat, lib.mod, nnfits, dz,
+cmdstanfit_batch <- function(gdat, nnfits, dz, lib.mod,
                         init_tracked = init_tracked_mod,
                         update_tracked = update_tracked_mod,
                         return_tracked = return_tracked_mod,
