@@ -7,7 +7,7 @@ stanfit_one <- function(gdat, nnfits, dz, which.spax,
                         iter_opt=5000, jv=1.e-4,
                         iter=1000, warmup=250, thin=1, chains=4,
                         threads_per_chain=4,
-                        max_treedepth=10, adapt_delta=0.9,
+                        maxtree=11, adapt_delta=0.9,
                         open_progress=FALSE, ...) {
     
     require(rstan)
@@ -26,7 +26,7 @@ stanfit_one <- function(gdat, nnfits, dz, which.spax,
                      chains=chains, iter=iter, warmup=warmup, thin=thin,
                      cores=getOption("mc.cores"),
                      init=init_pars, open_progress=open_progress,
-                     control=list(max_treedepth=max_treedepth, adapt_delta=adapt_delta), ...)
+                     control=list(max_treedepth=maxtree, adapt_delta=adapt_delta), ...)
     
     list(spm_data=spm_data, stanfit=stanfit, 
          norm_g=spm_data$norm_g, norm_st=spm_data$norm_st, norm_em=spm_data$norm_em, in_em=spm_data$in_em)
@@ -45,7 +45,7 @@ stanfit_batch <- function(gdat, nnfits, dz, lib.mod,
                         iter_opt=5000, jv=1.e-4,
                         iter=1000, warmup=250, chains=4,
                         threads_per_chain=4,
-                        max_treedepth=10, adapt_delta=0.9,
+                        maxtree=11, adapt_delta=0.9,
                         open_progress=FALSE,
                         start=NULL, end=NULL, fpart="bfits.rda", ...) {
   attach(lib.mod)
@@ -77,7 +77,7 @@ stanfit_batch <- function(gdat, nnfits, dz, lib.mod,
                             stan_model=smodel,
                             iter_opt=iter_opt, jv=jv,
                             iter = iter, warmup = warmup, chains = chains,
-                            max_treedepth = max_treedepth, adapt_delta = adapt_delta,
+                            maxtree = maxtree, adapt_delta = adapt_delta,
                             open_progress=open_progress, ...)
     plotpp(sfit, title=paste("fiber", i))
     update_tracked(i, sfit, fpart)
