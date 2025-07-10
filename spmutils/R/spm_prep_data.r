@@ -2,7 +2,7 @@
 
 ## normalize galaxy and stellar library fluxes by mean over all good data points
 
-prep_data_avg <- function(gdat, dz, nnfits, which.spax) {
+prep_data_avg <- function(gdat, nnfits, dz, which.spax) {
   i <- which.spax
   z <- gdat$meta$z+dz[i]
   flux <- gdat$flux[i, ]
