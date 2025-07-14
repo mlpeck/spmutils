@@ -1,4 +1,4 @@
-cmdstanfit_one <- function(gdat, nnfits, dz, which.spax,
+cmdstanfit_one <- function(gdat, dz, nnfits, which.spax,
                            prep_data = prep_data_mod,
                            init_opt = init_opt_mod,
                            init_sampler = init_sampler_cmd,
@@ -15,7 +15,7 @@ cmdstanfit_one <- function(gdat, nnfits, dz, which.spax,
   if (is.null(stan_model)) {
     stan_model <- cmdstan_model(stan_file=file.path(stan_filedir, stan_file), cpp_options = list(stan_threads = TRUE))
   }
-  spm_data <- prep_data(gdat, nnfits, dz, which.spax)
+  spm_data <- prep_data(gdat, dz, nnfits, which.spax)
   inits <- init_opt(spm_data, nnfits, which.spax, jv)
   spm_opt <- stan_model$optimize(data=spm_data, init=list(inits), iter=iter_opt, threads=1)
  
@@ -34,7 +34,7 @@ cmdstanfit_one <- function(gdat, nnfits, dz, which.spax,
 
 
 
-cmdstanfit_batch <- function(gdat, nnfits, dz, lib.mod,
+cmdstanfit_batch <- function(gdat, dz, nnfits, lib.mod,
                         init_tracked = init_tracked_mod,
                         update_tracked = update_tracked_mod,
                         return_tracked = return_tracked_mod,
@@ -71,7 +71,7 @@ cmdstanfit_batch <- function(gdat, nnfits, dz, lib.mod,
   for (i in start:end) {
     cat(paste("fiber", i, "\n"))
     if (is.na(dz[i]) || is.na(nnfits$tauv[i])) next
-    sfit <- cmdstanfit_one(gdat, nnfits, dz, which.spax=i,
+    sfit <- cmdstanfit_one(gdat, dz, nnfits, which.spax=i,
                              prep_data = prep_data,
                              init_opt = init_opt,
                              init_sampler = init_sampler,

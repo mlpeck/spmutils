@@ -1,4 +1,4 @@
-stanfit_one <- function(gdat, nnfits, dz, which.spax,
+stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         prep_data = prep_data_mod,
                         init_opt = init_opt_mod,
                         init_sampler = init_sampler_mod,
@@ -16,10 +16,16 @@ stanfit_one <- function(gdat, nnfits, dz, which.spax,
     }
     rstan_options(threads_per_chain=threads_per_chain)
 
-    spm_data <- prep_data(gdat, nnfits, dz, which.spax)
+    spm_data <- prep_data(gdat, dz, nnfits, which.spax)
     inits <- init_opt(spm_data, nnfits, which.spax, jv)
-    spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt)
-    
+    withCallingHandlers(
+      spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt),
+                 error = function(e) {
+                   cat("Optimization failed, using nnls solution instead to initialize sampler\n")
+                   spm_opt <- list(pars = inits)
+                   spm_opt
+                }
+    )
     init_pars <- lapply(X=1:chains, init_sampler, stan_opt=spm_opt$par, jv=jv)
     
     stanfit <- sampling(stan_model, data=spm_data,
@@ -34,7 +40,7 @@ stanfit_one <- function(gdat, nnfits, dz, which.spax,
 
 
                         
-stanfit_batch <- function(gdat, nnfits, dz, lib.mod,
+stanfit_batch <- function(gdat, dz, nnfits, lib.mod,
                         init_tracked = init_tracked_mod,
                         update_tracked = update_tracked_mod,
                         return_tracked = return_tracked_mod,
@@ -70,7 +76,7 @@ stanfit_batch <- function(gdat, nnfits, dz, lib.mod,
   }
   for (i in start:end) {
     if (is.na(dz[i]) || is.na(nnfits$tauv[i])) next
-    sfit <- stanfit_one(gdat, nnfits, dz, which.spax=i,
+    sfit <- stanfit_one(gdat, dz, nnfits, which.spax=i,
                             prep_data,
                             init_opt,
                             init_sampler,
