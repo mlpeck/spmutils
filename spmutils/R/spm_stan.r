@@ -9,33 +9,31 @@ stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         threads_per_chain=4,
                         maxtree=11, adapt_delta=0.9,
                         open_progress=FALSE, ...) {
-    
-    require(rstan)
-    if (is.null(stan_model)) {
-      stan_model <- rstan::stan_model(file=file.path(stan_filedir, stan_file))
-    }
-    rstan_options(threads_per_chain=threads_per_chain)
 
-    spm_data <- prep_data(gdat, dz, nnfits, which.spax)
-    inits <- init_opt(spm_data, nnfits, which.spax, jv)
-    withCallingHandlers(
-      spm_opt <- optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt),
-                 error = function(e) {
-                   cat("Optimization failed, using nnls solution instead to initialize sampler\n")
-                   spm_opt <- list(pars = inits)
-                   spm_opt
-                }
-    )
-    init_pars <- lapply(X=1:chains, init_sampler, stan_opt=spm_opt$par, jv=jv)
-    
-    stanfit <- sampling(stan_model, data=spm_data,
-                     chains=chains, iter=iter, warmup=warmup, thin=thin,
-                     cores=getOption("mc.cores"),
-                     init=init_pars, open_progress=open_progress,
-                     control=list(max_treedepth=maxtree, adapt_delta=adapt_delta), ...)
-    
-    list(spm_data=spm_data, stanfit=stanfit, 
-         norm_g=spm_data$norm_g, norm_st=spm_data$norm_st, norm_em=spm_data$norm_em, in_em=spm_data$in_em)
+  require(rstan)
+  if (is.null(stan_model)) {
+    stan_model <- rstan::stan_model(file=file.path(stan_filedir, stan_file))
+  }
+  rstan_options(threads_per_chain=threads_per_chain)
+
+  spm_data <- prep_data(gdat, dz, nnfits, which.spax)
+  inits <- init_opt(spm_data, nnfits, which.spax, jv)
+  spm_opt <- try(optimizing(stan_model, data=spm_data, init=inits, as_vector=FALSE, verbose=TRUE, iter=iter_opt), silent=TRUE)
+  if (inherits(spm_opt, "try-error")) {
+    cat("Optimization failed, using nnls solution instead to initialize sampler\n")
+    spm_opt <- list(pars = inits)
+  }
+
+  init_pars <- lapply(X=1:chains, init_sampler, stan_opt=spm_opt$par, jv=jv)
+
+  stanfit <- sampling(stan_model, data=spm_data,
+                      chains=chains, iter=iter, warmup=warmup, thin=thin,
+                      cores=getOption("mc.cores", chains),
+                      init=init_pars, open_progress=open_progress,
+                      control=list(max_treedepth=maxtree, adapt_delta=adapt_delta), ...)
+
+  list(spm_data=spm_data, stanfit=stanfit,
+       norm_g=spm_data$norm_g, norm_st=spm_data$norm_st, norm_em=spm_data$norm_em, in_em=spm_data$in_em)
 }
 
 
