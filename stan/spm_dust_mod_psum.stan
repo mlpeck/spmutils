@@ -48,13 +48,13 @@ parameters {
     simplex[nt*nz] b_st_s;
     vector<lower=0>[n_em] b_em;
     real<lower=0> tauv;
-    real<lower= -0.5> delta;
+    real<lower= -0.5, upper=1.2> delta;
 }
 model {
     b_em ~ normal(0, 100.);
     a ~ normal(1, 10.);
     tauv ~ normal(0, 1.);
-    delta ~ normal(0., 0.1);
+    delta ~ normal(0., 0.05);
     target += reduce_sum(sum_ll, ind, grainsize, sp_st, sp_em, gflux, g_std, lambda,
                           a, tauv, delta, b_st_s, b_em);
     }

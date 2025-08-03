@@ -115,7 +115,7 @@ init_sampler_mod <- function(X, stan_opt, jv) {
   b_st_s <- as.vector(b_st_s/sum(b_st_s))
   b_em <- as.vector(stan_opt$b_em + runif(length(stan_opt$b_em), min=jv/10, max=jv))
   tauv <- as.numeric(stan_opt$tauv + runif(1, min=jv/10, max=jv))
-  delta <- as.numeric(stan_opt$delta + rnorm(1, sd=jv))
+  delta <- as.numeric(stan_opt$delta)
   list(a=a, b_st_s=b_st_s, b_em=b_em, tauv=tauv, delta=delta)
 }
 
