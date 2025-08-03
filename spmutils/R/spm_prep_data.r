@@ -173,11 +173,11 @@ replace_sfit_mod <- function(sfit.all, sfit.one, which.spax) {
   post <- rstan::extract(sfit.one$stanfit)
   sp <- rstan::get_sampler_params(sfit.one$stanfit, inc_warmup=FALSE)
   sfit.all$b_st[,,which.spax] <- post$b_st
-  sfit.all$b_em[,sfit.one$in.em,which.spax] <- post$b_em
+  sfit.all$b_em[,sfit.one$in_em,which.spax] <- post$b_em
   sfit.all$a[,which.spax] <- post$a
   sfit.all$tauv[,which.spax] <- post$tauv
   sfit.all$delta[,which.spax] <- post$delta
-  sfit.all$in_em[sfit.one$in.em,which.spax] <- sfit.one$in.em
+  sfit.all$in_em[sfit.one$in_em,which.spax] <- sfit.one$in_em
   sfit.all$ll[,which.spax] <- post$ll
   sfit.all$walltime[which.spax] <- max(rowSums(rstan::get_elapsed_time(sfit.one$stanfit)))
   sfit.all$divergences[which.spax] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
