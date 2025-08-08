@@ -97,7 +97,7 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
     zsurf <- akima::interp(x=df$x[allok], y=df$y[allok], z=df$z[allok])
     xy <- expand.grid(zsurf$x, zsurf$y)
     df4 <- data.frame(x=xy[,1], y=xy[,2], z=as.vector(zsurf$z))
-    g1 <- g1 + metR::geom_contour2(aes(x=x, y=y, z=z, label = ..level..), data=df4, 
+    g1 <- g1 + metR::geom_contour2(aes(x=x, y=y, z=z, label = after_stat(level)), data=df4,
                             color=contourcolor, binwidth=cbinwidth, label_size=5, na.rm=TRUE)
   }
   if (addfp) {
