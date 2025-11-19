@@ -21,26 +21,35 @@ get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
   T.gyr <- 10^(ages-9)
   isf <- which.min(abs(tsf-T.gyr))
   binarea <- log10(pi*fibersinbin*cosmo::ascale(z)^2)
+
   b_st <- t(t(b_st)*norm_st)*cosmo::lum.sol(1, z)
   rmass <- t(t(b_st) * mstar)
-  sfh_post <- matrix(0, nsim, nt)
-  mgh_post <- matrix(0, nsim, nt)
-  for (i in 1:nz) {
-    sfh_post <- sfh_post + b_st[,((i-1)*nt+1):(i*nt)]
-    mgh_post <- mgh_post + rmass[,((i-1)*nt+1):(i*nt)]
-  }
+  stmass <- log10(b_st %*% mstar)
+
+  b_st <- array(b_st, dim=c(nsim, nt, nz))
+  rmass <- array(rmass, dim=c(nsim, nt, nz))
+
+  sfh_post <- apply(b_st, c(1,2), sum)
+  mgh_post <- apply(rmass, c(1,2), sum)
+  Z_post <- apply(b_st, c(1,2), crossprod , Z)/sfh_post
+  Z_st <- apply(rmass, c(1,2), crossprod, Z)/apply(rmass, c(1,2), sum)
+  Z_st <- rowMeans(Z_st)
+
   totalmg_post <- rowSums(mgh_post) - t(apply(mgh_post, 1, cumsum))
   mgh_post <- 1 - (t(apply(mgh_post, 1, cumsum))/rowSums(mgh_post))
   sfr <- log10(rowSums(sfh_post[,1:isf])/T.gyr[isf])-9.
   relsfr <- sfr - log10(rowSums(sfh_post)/(cosmo::dcos(Inf)$dT-cosmo::dcos(z)$dT)) + 6
   sigma_sfr <- sfr - binarea
-  mstar <- log10(b_st %*% mstar)
-  sigma_mstar <- mstar - binarea
+  sigma_mstar <- stmass - binarea
   ssfr <- sigma_sfr - sigma_mstar
-  list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post,
-       mstar=mstar, sigma_mstar=sigma_mstar, 
+  list(sfh_post=sfh_post,
+       mgh_post=mgh_post,
+       Z_post=Z_post,
+       totalmg_post=totalmg_post,
+       mstar=stmass, sigma_mstar=sigma_mstar,
        sfr=sfr, sigma_sfr=sigma_sfr, 
-       ssfr=ssfr, relsfr=relsfr)
+       ssfr=ssfr, relsfr=relsfr,
+       Z_st=Z_st)
 }
 
 batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
@@ -68,6 +77,7 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
   
   sfh_post <- array(NA, dim=c(nsim, nt, nf))
   mgh_post <- array(0, dim=c(nsim, nt, nf))
+  Z_post <- array(0, dim=c(nsim, nt, nf))
   totalmg_post <- matrix(0, nsim, nt)
   mstar <- matrix(NA, nsim, nf)
   sigma_mstar <- matrix(NA, nsim, nf)
@@ -75,12 +85,14 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
   sigma_sfr <- matrix(NA, nsim, nf)
   ssfr <- matrix(NA, nsim, nf)
   relsfr <- matrix(NA, nsim, nf)
+  Z_st <- matrix(NA, nsim, nf)
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
       sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i])
       sfh_post[,,i] <- sfi$sfh_post
       mgh_post[,,i] <- sfi$mgh_post
+      Z_post[,,i] <- sfi$Z_post
       totalmg_post <- totalmg_post + sfi$totalmg_post
       mstar[, i] <- sfi$mstar
       sigma_mstar[, i] <- sfi$sigma_mstar
@@ -88,12 +100,18 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
       sigma_sfr[, i] <- sfi$sigma_sfr
       ssfr[, i] <- sfi$ssfr
       relsfr[,i] <- sfi$relsfr
+      Z_st[,i] <- sfi$Z_st
   }
   sfr_tot <- log10(rowSums(10^sfr, na.rm=TRUE))
-  list(sfh_post=sfh_post, mgh_post=mgh_post, totalmg_post=totalmg_post, sfr_tot=sfr_tot,
+  list(sfh_post=sfh_post,
+       mgh_post=mgh_post,
+       Z_post=Z_post,
+       totalmg_post=totalmg_post,
+       sfr_tot=sfr_tot,
        mstar=mstar, sigma_mstar=sigma_mstar, 
        sfr=sfr, sigma_sfr=sigma_sfr, 
-       ssfr=ssfr, relsfr=relsfr)
+       ssfr=ssfr, relsfr=relsfr,
+       Z_st=Z_st)
 }
 
 
@@ -358,11 +376,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, lib.mod, drpcat=drpcat17, alaw=ca
     ll_m <- rep(NA, nf)
   }
   
-  mgh_post <- array(NA, dim=c(nsim, nt+1, nf))
-  sfh_post <- array(NA, dim=c(nsim, nt, nf))
-  totalmg_post <- matrix(0, nsim, nt+1)
-  
-  varnames <- c("sigma_mstar", "sigma_sfr", "ssfr", "relsfr",
+  varnames <- c("sigma_mstar", "sigma_sfr", "ssfr", "relsfr", "Z_st",
                 "tbar", "tbar_lum", "g_i",
                 "tauv_bd", "sigma_logl_ha", "sigma_logl_ha_ctauv", "sigma_logl_ha_ctauv_bd",
                 "eqw_ha", "o3hbeta", "o1halpha", "n2halpha", "s2halpha",
@@ -377,7 +391,7 @@ sum_batchfits <- function(gdat, nnfits, sfits, lib.mod, drpcat=drpcat17, alaw=ca
   
   sfh_all <- batch_sfh(gdat, sfits, lib.mod)
   
-  for (i in 1:4) {
+  for (i in 1:5) {
     assign(paste(varnames[i], suffixes[1], sep="_"), colMeans(sfh_all[[varnames[i]]]))
     assign(paste(varnames[i], suffixes[2], sep="_"), apply(sfh_all[[varnames[i]]], 2, sd))
   }
@@ -407,6 +421,10 @@ sum_batchfits <- function(gdat, nnfits, sfits, lib.mod, drpcat=drpcat17, alaw=ca
     relsfr_lo[i] <- quants[1]
     relsfr_hi[i] <- quants[2]
     
+    quants <- hdiofmcmc(sfh_all$Z_st[,i])
+    Z_st_lo[i] <- quants[1]
+    Z_st_hi[i] <- quants[2]
+
     if (is.null(dim(sfits$norm_st))) {
       norm_st <- sfits$norm_st[i]
     } else {
@@ -548,7 +566,8 @@ sum_batchfits <- function(gdat, nnfits, sfits, lib.mod, drpcat=drpcat17, alaw=ca
              sigma_mstar_m , sigma_mstar_std , sigma_mstar_lo , sigma_mstar_hi , 
              sigma_sfr_m , sigma_sfr_std , sigma_sfr_lo , sigma_sfr_hi , 
              ssfr_m , ssfr_std , ssfr_lo , ssfr_hi ,     
-             relsfr_m , relsfr_std , relsfr_lo , relsfr_hi , 
+             relsfr_m , relsfr_std , relsfr_lo , relsfr_hi ,
+             Z_st_m, Z_st_std, Z_st_lo, Z_st_hi,
              tbar_m , tbar_std , tbar_lo , tbar_hi , 
              tbar_lum_m , tbar_lum_std , tbar_lum_lo , tbar_lum_hi , 
              g_i_m , g_i_std , g_i_lo , g_i_hi , 
