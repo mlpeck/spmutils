@@ -1,7 +1,7 @@
 plot_all_sfr <- function(sfh, ages, facetby,
                          ptype="instsfr",
                          quants=c(0.025, 0.5, 0.975),
-                         logy=TRUE, alpha=0.5) {
+                         logx=TRUE, logy=TRUE, alpha=0.5) {
   require(ggplot2)
   T <- 10^(ages-9)
   nt <- length(T)
@@ -27,7 +27,9 @@ plot_all_sfr <- function(sfh, ages, facetby,
   g1 <- ggplot(df) + geom_line(aes(x=T, y=y_med)) +
                 geom_ribbon(aes(x=T, ymin=ymin, ymax=ymax), 
                 alpha=alpha, show.legend=FALSE)
-  g1 <- g1 + scale_x_log10(breaks=c(0.01, .03, 0.1, 0.3, 1, 3, 10))
+  if (logx) {
+    g1 <- g1 + scale_x_log10(breaks=c(0.01, .03, 0.1, 0.3, 1, 3, 10))
+  }
   g1 <- g1 + xlab("Lookback time (Gyr)") + ylab("SFR")
   if (logy) {
     g1 <- g1 + scale_y_log10()
@@ -39,7 +41,8 @@ plot_all_sfr <- function(sfh, ages, facetby,
   invisible(list(df=df, graph=g1))
 }
 
-plotsfh_binned <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.025,.975), log="", ylim=NULL) {
+plotsfh_binned <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.025,.975),
+                           logx=TRUE, logy=TRUE, ylim=NULL) {
     require(ggplot2)
     
     sfh <- apply(sfh[,,which.bins], c(1, 2), sum, na.rm=TRUE)
@@ -57,6 +60,9 @@ plotsfh_binned <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.02
           yvals <- t(t(sfh)/dt)
         },
         mgh = {
+          yvals <- sfh
+        },
+        Z_st = {
           yvals <- sfh
         },
         avgsfr = {
@@ -81,10 +87,10 @@ plotsfh_binned <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.02
     if (!is.null(ylim)) {
         g1 <- g1 + ylim(ylim)
     }
-    if (log=="x" || log=="xy") {
+    if (logx) {
         g1 <- g1 + scale_x_log10(breaks=c(0.01, .03, 0.1, 0.3, 1, 3, 10))
     }
-    if (log=="y" || log=="xy") {
+    if (logy) {
         g1 <- g1 + scale_y_log10()
     }
     g1
