@@ -1,4 +1,4 @@
-plot_all_sfr <- function(sfh, ages, facetby,
+plot_all_sfh <- function(sfh, ages, facetby,
                          ptype="instsfr",
                          quants=c(0.025, 0.5, 0.975),
                          logx=TRUE, logy=TRUE, alpha=0.5) {
@@ -41,7 +41,7 @@ plot_all_sfr <- function(sfh, ages, facetby,
   invisible(list(df=df, graph=g1))
 }
 
-plotsfh_binned <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.025,.975),
+plot_binned_sfh <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.025,.975),
                            logx=TRUE, logy=TRUE, ylim=NULL) {
     require(ggplot2)
     
