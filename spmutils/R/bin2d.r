@@ -12,6 +12,12 @@ sum_spec <- function(flux, ivar, indexes, wl.ind, cfn) {
 
 
 bin2d <- function(gdat, snrthresh=6.25, f.fluxok=0.8, wl.limits = c(3700, 7500), cfn=mean, WVT=FALSE, PLOT=TRUE) {
+  if (min(gdat$snr, na.rm=TRUE) >= snrthresh) {
+    nf <- length(gdat$snr)
+    gdat$fibersinbin <- rep(1,nf)
+    gdat$bin.fiber <- 1:nf
+    return(gdat)
+  }
   voronoi_tessellation <- function(x, y, xnode, ynode, scale) {
     if (scale[1] == 1) {
       classe <- nabor::knn(cbind(xnode, ynode), query=cbind(x, y), k=1)

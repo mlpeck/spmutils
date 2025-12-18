@@ -40,8 +40,9 @@ data {
     matrix[nl, n_em] sp_em; //emission line profiles
 }
 transformed data {
-  int grainsize = 1;
-  array[nl] int ind = rep_array(1, nl);
+  int grainsize = nl %/% 24;
+  array[nl] int ind = rep_array(1, nl);  //new declaration syntax
+//  vector[nt*nz] alpha = rep_vector(0.25, nt*nz);
 }
 parameters {
     real a;
@@ -53,8 +54,9 @@ parameters {
 model {
     b_em ~ normal(0, 100.);
     a ~ normal(1, 10.);
-    tauv ~ normal(0, 1.);
+    tauv ~ normal(0, 1.0);
     delta ~ normal(0., 0.05);
+//    b_st_s ~ dirichlet(alpha);
     target += reduce_sum(sum_ll, ind, grainsize, sp_st, sp_em, gflux, g_std, lambda,
                           a, tauv, delta, b_st_s, b_em);
     }
@@ -76,9 +78,9 @@ generated quantities {
     
     for (i in 1:nl) {
         gflux_rep[i] = norm_g*normal_rng(mu_g[i] , g_std[i]);
-        log_lik[i] = normal_lpdf(gflux[i] | mu_g[i], g_std[i]);
+        log_lik[i] = normal_lpdf(gflux[i] | mu_g[i], g_std[i]) - log(norm_g);
         mu_g[i] = norm_g * mu_g[i];
     }
-    ll = sum(log_lik) - nl * log(norm_g);
+    ll = sum(log_lik);
 }
 
