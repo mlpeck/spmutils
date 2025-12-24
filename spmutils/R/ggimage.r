@@ -4,6 +4,12 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
                     addcontour=FALSE, binwidth=NULL
                    ) {
     require(ggplot2)
+    if (is.list(zmat)) {
+      zmat <- zmat$zmat
+      x <- zmat$ra
+      y <- zmat$dec
+      xrev <- TRUE
+    }
     if (is.null(x)) x <- 1:nrow(zmat)
     if (is.null(y)) y <- 1:ncol(zmat)
     if (!is.null(dim(x))) {
