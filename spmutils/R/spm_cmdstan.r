@@ -67,7 +67,7 @@ cmdstanfit_batch <- function(gdat, dz, nnfits, lib.mod,
 
   extract_post <<- extract_post_cmd
   get_walltime <<- get_walltime_cmd
-  get_sampler_diagnostics <<- get_sampler_diagnoics_cmd
+  get_sampler_diagnostics <<- get_sampler_diagnostics_cmd
 
   dims <- dim(gdat$flux)
   nsim <- iter*chains
