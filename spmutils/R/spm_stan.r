@@ -1,10 +1,10 @@
-extract_post <- rstan::extract
+extract_post_rstan <- rstan::extract
 
-get_walltime <- function(stanfit) {
+get_walltime_rstan <- function(stanfit) {
   max(rowSums(rstan::get_elapsed_time(stanfit)))
 }
 
-get_sampler_diagnostics <- function(stanfit) {
+get_sampler_diagnostics_rstan <- function(stanfit) {
   rstan::get_sampler_params(stanfit, inc_warmup=FALSE)
 }
 
@@ -55,6 +55,9 @@ stanfit_batch <- function(gdat, dz, nnfits, lib.mod,
                         prep_data = prep_data_mod,
                         init_opt = init_opt_mod,
                         init_sampler = init_sampler_mod,
+                        extract_post = extract_post_rstan,
+                        get_walltime = get_walltime_rstan,
+                        get_sampler_diagnostics = get_sampler_diagnostics_rstan,
                         stan_file="spm_dust_mod_psum.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000, jv=1.e-4,
                         iter=1000, warmup=250, chains=4,

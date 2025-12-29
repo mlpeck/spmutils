@@ -1,14 +1,14 @@
-extract_post <- function(stanfit) {
+extract_post_cmd <- function(stanfit) {
   spost <- posterior::as_draws_rvars(stanfit$draws())
   spost_larray <- lapply(spost, posterior::draws_of)
   spost_larray
 }
 
-get_walltime <- function(stanfit) {
+get_walltime_cmd <- function(stanfit) {
   stanfit$time()$total
 }
 
-get_sampler_diagnostics <- function(stanfit) {
+get_sampler_diagnostics_cmd <- function(stanfit) {
   stanfit$sampler_diagnostics(inc_warmup=FALSE, format="draws_matrix")
 }
 
@@ -54,6 +54,9 @@ cmdstanfit_batch <- function(gdat, dz, nnfits, lib.mod,
                         prep_data = prep_data_mod,
                         init_opt = init_opt_mod,
                         init_sampler = init_sampler_cmd,
+                        extract_post = extract_post_cmd,
+                        get_walltime = get_walltime_cmd,
+                        get_sampler_diagnostics = get_sampler_diagnoics_cmd,
                         stan_file="spm_dust_mod_psum.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000,
                         jv=1.e-5,
