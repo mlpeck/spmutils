@@ -54,9 +54,6 @@ cmdstanfit_batch <- function(gdat, dz, nnfits, lib.mod,
                         prep_data = prep_data_mod,
                         init_opt = init_opt_mod,
                         init_sampler = init_sampler_cmd,
-                        extract_post = extract_post_cmd,
-                        get_walltime = get_walltime_cmd,
-                        get_sampler_diagnostics = get_sampler_diagnoics_cmd,
                         stan_file="spm_dust_mod_psum.stan", stan_filedir="~/spmcode/",
                         iter_opt=5000,
                         jv=1.e-5,
@@ -67,6 +64,11 @@ cmdstanfit_batch <- function(gdat, dz, nnfits, lib.mod,
 ) {
   attach(lib.mod)
   on.exit(detach(lib.mod))
+
+  extract_post <<- extract_post_cmd
+  get_walltime <<- get_walltime_cmd
+  get_sampler_diagnostics <<- get_sampler_diagnoics_cmd
+
   dims <- dim(gdat$flux)
   nsim <- iter*chains
   nt <- length(lib.mod$ages)
