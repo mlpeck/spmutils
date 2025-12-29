@@ -228,7 +228,7 @@ plotpp <- function(sfit, title=NULL,
     lambda <- sfit$spm_data$lambda
     gflux <- sfit$spm_data$gflux
     g_std <- sfit$spm_data$g_std
-    pp <- rstan::extract(sfit$stanfit)$gflux_rep
+    pp <- extract_post(sfit$stanfit)$gflux_rep
     if (exists("norm_g", sfit)) {
       gflux <- gflux * sfit$norm_g
       g_std <- g_std * sfit$norm_g
@@ -264,7 +264,7 @@ plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turqu
       gflux <- gflux * sfit$norm_g
       g_std <- g_std * sfit$norm_g
     }
-    fitted <- rstan::extract(sfit$stanfit)$mu_g
+    fitted <- extract_post(sfit$stanfit)$mu_g
     res <- t((gflux-t(fitted))/g_std)
     ylims <- apply(fitted, 2, quantile, probs=quants)
     rlims <- apply(res, 2, quantile, probs=quants)

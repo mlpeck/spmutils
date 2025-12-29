@@ -138,7 +138,7 @@ init_tracked_mod <- function(nsim, n_st, n_em, nr) {
 }
 
 update_tracked_mod <- function(i, sfit, fpart) {
-  post <- rstan::extract(sfit$stanfit)
+  post <- extract_post(sfit$stanfit)
   env <- parent.frame()
   env$b_st[,,i] <- post$b_st
   env$b_em[,sfit$in_em,i] <- post$b_em
@@ -147,8 +147,8 @@ update_tracked_mod <- function(i, sfit, fpart) {
   env$delta[,i] <- post$delta
   env$in_em[sfit$in_em,i] <- sfit$in_em
   env$ll[,i] <- post$ll
-  env$walltime[i] <- max(rowSums(rstan::get_elapsed_time(sfit$stanfit)))
-  sp <- rstan::get_sampler_params(sfit$stanfit, inc_warmup=FALSE)
+  env$walltime[i] <- get_walltime(sfit$stanfit)
+  sp <- get_sampler_diagnostics(sfit$stanfit)
   env$divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
   env$max_treedepth[i] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
   env$norm_g[i] <- sfit$norm_g
@@ -170,8 +170,8 @@ return_tracked_mod <- function() {
 ## replace a single stan run in batch fits
 
 replace_sfit_mod <- function(sfit.all, sfit.one, which.spax) {
-  post <- rstan::extract(sfit.one$stanfit)
-  sp <- rstan::get_sampler_params(sfit.one$stanfit, inc_warmup=FALSE)
+  post <- extract_post(sfit.one$stanfit)
+  sp <- get_sampler_diagnostics(sfit.one$stanfit)
   sfit.all$b_st[,,which.spax] <- post$b_st
   sfit.all$b_em[,sfit.one$in_em,which.spax] <- post$b_em
   sfit.all$a[,which.spax] <- post$a
@@ -179,7 +179,7 @@ replace_sfit_mod <- function(sfit.all, sfit.one, which.spax) {
   sfit.all$delta[,which.spax] <- post$delta
   sfit.all$in_em[sfit.one$in_em,which.spax] <- sfit.one$in_em
   sfit.all$ll[,which.spax] <- post$ll
-  sfit.all$walltime[which.spax] <- max(rowSums(rstan::get_elapsed_time(sfit.one$stanfit)))
+  sfit.all$walltime[which.spax] <- get_walltime(sfit.one$stanfit)
   sfit.all$divergences[which.spax] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
   sfit.all$max_treedepth[which.spax] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
   sfit.all$norm_g[which.spax] <- sfit.one$norm_g

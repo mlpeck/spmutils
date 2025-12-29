@@ -1,3 +1,13 @@
+extract_post <- rstan::extract
+
+get_walltime <- function(stanfit) {
+  max(rowSums(rstan::get_elapsed_time(stanfit)))
+}
+
+get_sampler_diagnostics <- function(stanfit) {
+  rstan::get_sampler_params(stanfit, inc_warmup=FALSE)
+}
+
 stanfit_one <- function(gdat, dz, nnfits, which.spax,
                         prep_data = prep_data_mod,
                         init_opt = init_opt_mod,

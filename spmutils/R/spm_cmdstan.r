@@ -1,3 +1,17 @@
+extract_post <- function(stanfit) {
+  spost <- posterior::as_draws_rvars(stanfit$draws())
+  spost_larray <- lapply(spost, posterior::draws_of)
+  spost_larray
+}
+
+get_walltime <- function(stanfit) {
+  stanfit$time()$total
+}
+
+get_sampler_diagnostics <- function(stanfit) {
+  stanfit$sampler_diagnostics(inc_warmup=FALSE, format="draws_matrix")
+}
+
 cmdstanfit_one <- function(gdat, dz, nnfits, which.spax,
                            prep_data = prep_data_mod,
                            init_opt = init_opt_mod,
@@ -21,12 +35,11 @@ cmdstanfit_one <- function(gdat, dz, nnfits, which.spax,
  
   init_files <- init_sampler(stan_opt=spm_opt$mle(), jv=jv, chains=chains)
 
-  spm_sample <- stan_model$sample(data=spm_data, init=init_files,
+  stanfit <- stan_model$sample(data=spm_data, init=init_files,
                                   chains=chains, parallel_chains=cores, threads_per_chain=threads,
                                   iter_warmup=warmup, iter_sampling=iter, thin=thin,
                                   max_treedepth=maxtree, adapt_delta=adapt_delta
   )
-  stanfit <- rstan::read_stan_csv(spm_sample$output_files())
   
   list(spm_data=spm_data, stanfit=stanfit, 
        norm_g=spm_data$norm_g, norm_st=spm_data$norm_st, norm_em=spm_data$norm_em, in_em=spm_data$in_em)

@@ -5,9 +5,9 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
                    ) {
     require(ggplot2)
     if (is.list(zmat)) {
-      zmat <- zmat$zmat
       x <- zmat$ra
       y <- zmat$dec
+      zmat <- zmat$zmat
       xrev <- TRUE
     }
     if (is.null(x)) x <- 1:nrow(zmat)
@@ -66,7 +66,7 @@ fillpoly <- function(ra, dec, zvals, dxy=0.5, min_ny=0, usefields=TRUE) {
 
 ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = FALSE, 
                 addborders = addfiberpos, addfp = FALSE, addcontour = !addfiberpos,
-                addbinno = !addfiberpos,
+                addbinno = !addfiberpos, addcrosshairs=FALSE,
                 show.legend = TRUE, na.value = "grey95", 
                 palette = "Set1", colors = viridis::viridis(256), 
                 contourcolor="black", cbinwidth=25, fpcolor = "red") {
@@ -109,6 +109,9 @@ ggbinplot <- function (gdat, z, zlab = NULL, addfiberpos = TRUE, addcentroid = F
   if (addfp) {
     g1 <- g1 + ggalt::geom_encircle(aes(x = x, y = y), data = df2, 
       expand = 0.02, color = fpcolor, size = 2)
+  }
+  if (addcrosshairs) {
+    g1 <- g1 + geom_hline(yintercept=0, color=fpcolor) + geom_vline(xintercept=0, color=fpcolor)
   }
   if (!is.null(zlab) & show.legend) {
     g1 <- g1 + labs(fill = zlab)
