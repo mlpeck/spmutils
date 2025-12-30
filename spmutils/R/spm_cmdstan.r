@@ -9,7 +9,10 @@ get_walltime_cmd <- function(stanfit) {
 }
 
 get_sampler_diagnostics_cmd <- function(stanfit) {
-  stanfit$sampler_diagnostics(inc_warmup=FALSE, format="draws_matrix")
+  sp <- stanfit$sampler_diagnostics(inc_warmup=FALSE, format="draws_matrix")
+  divergences <- sum(sp[, "divergent__"])
+  max_treedepth <- max(sp[, "treedepth__"])
+  list(divergences=divergences, max_treedepth=max_treedepth)
 }
 
 cmdstanfit_one <- function(gdat, dz, nnfits, which.spax,

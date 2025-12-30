@@ -4,7 +4,7 @@ get_sfh <- function(..., z, fibersinbin=1, tsf=0.1) {
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
-    post <- rstan::extract(ins$stanfit)
+    post <- extract_post(ins$stanfit)
     b_st <- post$b_st
     norm_st <- ins$norm_st
     if (exists("norm_g", ins)) {
@@ -75,17 +75,17 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
     fibersinbin <- gdat$fibersinbin
   }
   
-  sfh_post <- array(NA, dim=c(nsim, nt, nf))
-  mgh_post <- array(0, dim=c(nsim, nt, nf))
-  Z_post <- array(0, dim=c(nsim, nt, nf))
-  totalmg_post <- matrix(0, nsim, nt)
-  mstar <- matrix(NA, nsim, nf)
-  sigma_mstar <- matrix(NA, nsim, nf)
-  sfr <- matrix(NA, nsim, nf)
-  sigma_sfr <- matrix(NA, nsim, nf)
-  ssfr <- matrix(NA, nsim, nf)
-  relsfr <- matrix(NA, nsim, nf)
-  Z_st <- matrix(NA, nsim, nf)
+  sfh_post <- array(NA_real_, dim=c(nsim, nt, nf))
+  mgh_post <- array(NA_real_, dim=c(nsim, nt, nf))
+  Z_post <- array(NA_real_, dim=c(nsim, nt, nf))
+  totalmg_post <- matrix(NA_real_, nsim, nt)
+  mstar <- matrix(NA_real_, nsim, nf)
+  sigma_mstar <- matrix(NA_real_, nsim, nf)
+  sfr <- matrix(NA_real_, nsim, nf)
+  sigma_sfr <- matrix(NA_real_, nsim, nf)
+  ssfr <- matrix(NA_real_, nsim, nf)
+  relsfr <- matrix(NA_real_, nsim, nf)
+  Z_st <- matrix(NA_real_, nsim, nf)
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
@@ -121,7 +121,7 @@ get_proxies <- function(...) {
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
-    post <- rstan::extract(ins$stanfit)
+    post <- extract_post(ins$stanfit)
     b_st <- post$b_st
     norm_st <- ins$norm_st
     if (exists("a", post)) {
@@ -149,7 +149,7 @@ get_em <- function(..., z, fibersinbin=1, ew_width=15) {
   ins <- list(...)
   if (is.list(ins[[1]])) {
     ins <- ins[[1]]
-    post <- rstan::extract(ins$stanfit)
+    post <- extract_post(ins$stanfit)
     b_st <- post$b_st
     b_em <- post$b_em
     norm_st <- ins$norm_st

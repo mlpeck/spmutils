@@ -149,8 +149,8 @@ update_tracked_mod <- function(i, sfit, fpart) {
   env$ll[,i] <- post$ll
   env$walltime[i] <- get_walltime(sfit$stanfit)
   sp <- get_sampler_diagnostics(sfit$stanfit)
-  env$divergences[i] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
-  env$max_treedepth[i] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
+  env$divergences[i] <- sp$divergences
+  env$max_treedepth[i] <- sp$max_treedepth
   env$norm_g[i] <- sfit$norm_g
   env$norm_st[,i] <- sfit$norm_st
   env$norm_em[i] <- sfit$norm_em
@@ -180,8 +180,8 @@ replace_sfit_mod <- function(sfit.all, sfit.one, which.spax) {
   sfit.all$in_em[sfit.one$in_em,which.spax] <- sfit.one$in_em
   sfit.all$ll[,which.spax] <- post$ll
   sfit.all$walltime[which.spax] <- get_walltime(sfit.one$stanfit)
-  sfit.all$divergences[which.spax] <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
-  sfit.all$max_treedepth[which.spax] <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
+  sfit.all$divergences[which.spax] <- sp$divergences
+  sfit.all$max_treedepth[which.spax] <- sp$max_treedepth
   sfit.all$norm_g[which.spax] <- sfit.one$norm_g
   sfit.all$norm_st[,which.spax] <- sfit.one$norm_st
   sfit.all$norm_em[which.spax] <- sfit.one$norm_em

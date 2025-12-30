@@ -48,6 +48,7 @@ plot_binned_sfh <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.0
     sfh <- apply(sfh[,,which.bins], c(1, 2), sum, na.rm=TRUE)
     nt <- length(ages)
     ns <- nrow(sfh)
+    nb <- length(which.bins)
     ages.years <- 10^ages
     yvals <- matrix(0, ns, nt)
     switch(ptype,
@@ -60,10 +61,10 @@ plot_binned_sfh <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.0
           yvals <- t(t(sfh)/dt)
         },
         mgh = {
-          yvals <- sfh
+          yvals <- sfh/nb
         },
         Z_st = {
-          yvals <- sfh
+          yvals <- sfh/nb
         },
         avgsfr = {
             yvals <- t(apply(sfh, 1, cumsum)/ages.years)
