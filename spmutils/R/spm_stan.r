@@ -7,7 +7,7 @@ get_walltime_rstan <- function(stanfit) {
 get_sampler_diagnostics_rstan <- function(stanfit) {
   sp <- rstan::get_sampler_params(stanfit, inc_warmup=FALSE)
   divergences <- sum(sapply(sp, function(x) sum(x[, "divergent__"])))
-  max_trerdepth <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
+  max_treedepth <- max(sapply(sp, function(x) max(x[, "treedepth__"])))
   list(divergences=divergences, max_treedepth=max_treedepth)
 }
 
