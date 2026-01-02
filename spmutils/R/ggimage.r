@@ -13,8 +13,8 @@ ggimage <- function(zmat, x=NULL, y=NULL, col=viridis::viridis(256),
     if (is.null(x)) x <- 1:nrow(zmat)
     if (is.null(y)) y <- 1:ncol(zmat)
     if (!is.null(dim(x))) {
-      x <- colMeans(x)
-      y <- rowMeans(y)
+      x <- rowMeans(x)
+      y <- colMeans(y)
     }
     xy <- expand.grid(x,y)
     df <- data.frame(cbind(xy, as.vector(zmat)))
