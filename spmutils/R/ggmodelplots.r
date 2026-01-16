@@ -1,6 +1,6 @@
 ## useful plots
   
-plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", ylim=NULL) {
+plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), logx=TRUE, logy=FALSE, ylim=NULL) {
     require(ggplot2)
     
     nt <- length(ages)
@@ -40,10 +40,10 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), log="", yl
     if (!is.null(ylim)) {
         g1 <- g1 + ylim(ylim)
     }
-    if (log=="x" || log=="xy") {
+    if (logx) {
         g1 <- g1 + scale_x_log10()
     }
-    if (log=="y" || log=="xy") {
+    if (logy) {
         g1 <- g1 + scale_y_log10()
     }
     plot(g1)
@@ -57,7 +57,7 @@ plotsfhmgh <- function(sfh_post, ages, which.spax) {
   gridExtra::grid.arrange(g1, g2, ncol=1)
 }
 
-plotmgh <- function(mgh, ages, quants=c(.025, .975), log="") {
+plotmgh <- function(mgh, ages, quants=c(.025, .975), logx=TRUE, logy=FALSE) {
     require(ggplot2)
     ages.gyr <- 10^(ages-9)
     mgh.mean <- colMeans(mgh)
@@ -70,10 +70,10 @@ plotmgh <- function(mgh, ages, quants=c(.025, .975), log="") {
     g1 <- ggplot(df, aes(x=T, y=mgh)) + geom_line() + xlab("T (Gyr)") + 
             ylab("Cumulative mass fraction")
     g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), color="gray70", alpha=0.5)
-    if (log=="x" || log=="xy") {
+    if (logx) {
         g1 <- g1 + scale_x_log10()
     }
-    if (log=="y" || log=="xy") {
+    if (logy) {
         g1 <- g1 + scale_y_log10()
     }
     plot(g1)

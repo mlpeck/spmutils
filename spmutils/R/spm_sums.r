@@ -89,7 +89,7 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
   
   for (i in 1:nf) {
     if (is.na(b_st[1, 1, i])) next
-      sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i])
+      sfi <- get_sfh(b_st=b_st[,,i]*norm_g[i], norm_st=norm_st[,i], z=z, fibersinbin=fibersinbin[i], tsf=tsf)
       sfh_post[,,i] <- sfi$sfh_post
       mgh_post[,,i] <- sfi$mgh_post
       Z_post[,,i] <- sfi$Z_post
