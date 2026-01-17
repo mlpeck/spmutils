@@ -41,7 +41,7 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), logx=TRUE,
         g1 <- g1 + ylim(ylim)
     }
     if (logx) {
-        g1 <- g1 + scale_x_log10()
+        g1 <- g1 + scale_x_log10(breaks=c(0.01, .03, 0.1, 0.3, 1, 3, 10))
     }
     if (logy) {
         g1 <- g1 + scale_y_log10()
@@ -71,7 +71,7 @@ plotmgh <- function(mgh, ages, quants=c(.025, .975), logx=TRUE, logy=FALSE) {
             ylab("Cumulative mass fraction")
     g1 <- g1 + geom_ribbon(aes(ymin=ymin, ymax=ymax), color="gray70", alpha=0.5)
     if (logx) {
-        g1 <- g1 + scale_x_log10()
+        g1 <- g1 + scale_x_log10(breaks=c(0.01, .03, 0.1, 0.3, 1, 3, 10))
     }
     if (logy) {
         g1 <- g1 + scale_y_log10()
