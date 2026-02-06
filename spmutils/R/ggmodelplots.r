@@ -50,10 +50,14 @@ plotsfh <- function(sfh, ages, ptype="instsfr", quants=c(0.025,.975), logx=TRUE,
     invisible(list(graph=g1, df=df))
 }
 
-plotsfhmgh <- function(sfh_post, ages, which.spax) {
+plotsfhmgh <- function(sfh_post, ages, which.spax, title=NULL) {
   g1 <- plotsfh(sfh_post$sfh[,,which.spax], ages=ages, ptype="instsfr", logx=TRUE)$graph
-  g1 <- g1 + ggtitle(paste("Bin", which.spax))
   g2 <- plotsfh(sfh_post$mgh[,,which.spax], ages=ages, ptype="mgh", logx=TRUE)$graph
+  if (is.null(title)) {
+    g2 <- g2 + ggtitle(paste("Bin", which.spax))
+  } else {
+    g2 <- g2 + ggtitle(title)
+  }
   gridExtra::grid.arrange(g1, g2, ncol=1)
 }
 
@@ -251,7 +255,7 @@ plotpp <- function(sfit, title=NULL,
     g2 <- g2 + geom_line(aes(y=residual), color=fcolor)
     g3 <- gridExtra::grid.arrange(g1, g2, nrow=2)
 #    plot(g3)
-    invisible(list(df=df, g1=g1, g2=g2))
+    invisible(list(df=df, g1=g1, g2=g2, g3=g3))
 }
 
 plotfitted <- function(sfit, quants=c(.025,.975), gcolor="grey70", fcolor="turquoise2") {
@@ -384,5 +388,5 @@ replotpp <- function(gdat, dz, nnfits, sfits, which.spax,
     g2 <- g2 + geom_line(aes(y=residual), color=fcolor)
     g3 <- gridExtra::grid.arrange(g1, g2, nrow=2)
     plot(g3)
-    invisible(list(df=df, g1=g1, g2=g2))
+    invisible(list(df=df, g1=g1, g2=g2, g3=g3))
 }
