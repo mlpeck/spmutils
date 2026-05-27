@@ -1,7 +1,7 @@
 plot_all_sfh <- function(sfh, ages, facetby,
                          ptype="instsfr",
                          quants=c(0.025, 0.5, 0.975),
-                         logx=TRUE, logy=TRUE, alpha=0.5) {
+                         logx=TRUE, logy=FALSE, alpha=0.5) {
   require(ggplot2)
   T <- 10^(ages-9)
   nt <- length(T)
@@ -42,7 +42,7 @@ plot_all_sfh <- function(sfh, ages, facetby,
 }
 
 plot_binned_sfh <- function(sfh, ages, which.bins, ptype="instsfr", quants=c(0.025,.975),
-                           logx=TRUE, logy=TRUE, ylim=NULL) {
+                           logx=TRUE, logy=FALSE, ylim=NULL) {
     require(ggplot2)
     
     sfh <- apply(sfh[,,which.bins], c(1, 2), sum, na.rm=TRUE)
