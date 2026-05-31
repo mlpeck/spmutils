@@ -78,7 +78,7 @@ batch_sfh <- function(gdat, sfits, lib.mod, tsf=0.1) {
   sfh_post <- array(NA_real_, dim=c(nsim, nt, nf))
   mgh_post <- array(NA_real_, dim=c(nsim, nt, nf))
   Z_post <- array(NA_real_, dim=c(nsim, nt, nf))
-  totalmg_post <- matrix(NA_real_, nsim, nt)
+  totalmg_post <- matrix(0., nsim, nt)
   mstar <- matrix(NA_real_, nsim, nf)
   sigma_mstar <- matrix(NA_real_, nsim, nf)
   sfr <- matrix(NA_real_, nsim, nf)
