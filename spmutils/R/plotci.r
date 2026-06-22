@@ -1,11 +1,11 @@
 plotci <- function(df, x, y, x.sd=NULL, xmin=NULL, xmax=NULL,
                    y.sd=NULL, ymin=NULL, ymax=NULL,
-                   color=NULL, alpha=1) {
+                   color=NULL, alpha=1, alpha_p=1) {
   require(ggplot2)
   attach(df)
   on.exit(detach(df))
 
-  g1 <- ggplot(df, aes(x={{x}}, y={{y}}, color={{color}})) + geom_point(na.rm=TRUE)
+  g1 <- ggplot(df, aes(x={{x}}, y={{y}}, color={{color}})) + geom_point(na.rm=TRUE, alpha=alpha_p)
   if (!is.null(x.sd)) {
     g1 <- g1 + geom_errorbarh(aes(y={{y}}, xmin={{x}}-{{x.sd}}, xmax={{x}}+{{x.sd}}, color={{color}}), alpha=alpha)
   }
